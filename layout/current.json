@@ -3,11 +3,11 @@
   "keyboard": "go60",
   "firmware_api_version": "1",
   "locale": "sv-SE",
-  "uuid": "72ef846f-c08f-460d-9b77-1fe3a9280ccb",
-  "parent_uuid": "d1380eff-30da-480f-ad0d-6f068344c165",
+  "uuid": "49ea1794-3e14-48b4-ae7d-7611b26d3739",
+  "parent_uuid": "49ea1794-3e14-48b4-ae7d-7611b26d3739",
   "unlisted": false,
   "date": 1790339656,
-  "creator": "topatus",
+  "creator": "mibbo",
   "title": "Factory Default Layout",
   "notes": "Factory default layout for Go60\n\nThis layout is designed as a low-friction layout for beginners, mostly avoiding the use of hold-taps and other timing-dependent behaviours. \n\nThe layout has 5 layers:\n- Layer 0 (Base Layer): The alphas and numbers and base symbols\n- Layer 1 (Keypad Layer): Layer optimized for number data entry\n- Layer 2 (SymbolNav Layer): Navigation keys and symbol keys accessible via chording. Please note to simplify navigation key combos with ctrl+shift, this layer has added shift and control on the bottom row of the right hand pinky columns\n- Layer 3 (Magic Layer): Access to Go60 control functions such as RGB and Bluetooth\n- Layer 4 (Factory Test Layer): This layer is not used for normal typing; it is only for switch testing\n\nTo switch to Layer 1 (Keypad Layer), you can hold down RH C6R4 to temporarily switch into Layer 1, or double tap to persistently switch into Layer 1. You can single tap RH C6R4 to get back to the Layer 0 (Base Layer).\nTo switch to Layer 2 (SymbolNav Layer), you can hold down LH T1 to temporarily switch into Layer 2, or double tap to persistently switch into Layer 2. You can single tap LH T1 to get back to the Layer 0 (Base Layer).\n\nThe Right Trackpad mouse movement is accelerated 3 times the normal speed in the SymbolNav Layer (i.e. with LH T1 held).",
   "tags": [
@@ -16,7 +16,9 @@
   "custom_defined_behaviors": "",
   "custom_devicetree": "",
   "config_parameters": [],
-  "layout_parameters": {},
+  "layout_parameters": {
+    "cirque_touch_sensitivity": ""
+  },
   "layer_names": [
     "Base",
     "Keypad",
@@ -2296,8 +2298,8 @@
         {
           "code": "&zip_xy_scaler",
           "params": [
-            11,
-            12
+            5,
+            9
           ]
         },
         {
