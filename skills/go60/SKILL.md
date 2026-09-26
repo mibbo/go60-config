@@ -37,9 +37,22 @@ like `'{'` or `'*'` for the shell. `find` also accepts words such as `bootloader
 
 ## How to answer
 
-The user is still learning where things are, so answer the way you'd point at a physical keyboard:
+The user is still learning where things are, so answer the way you'd point at a physical keyboard.
 
-1. **Say where the key is in plain words first**: which hand, which row, which finger, and for thumbs,
+**Start every answer with the key combination as a one-line summary**, in a blockquote so it stands
+out. Write each key as its MoErgo position name in backticks, in the order to press them, and mark
+the keys that are held. The user reads this line first and often needs nothing else:
+
+> **Super + →** : `LH T1` hold + `RH C2R5` hold + `LH C2R3` tap
+
+> **{** : `RH T1` hold + `RH C2R1` tap
+
+> **å** : `RH C3R5`
+
+If there are several good ways, give one summary line for each, easiest first, and put a short label
+after the line (e.g. "SymbolNav on the left hand"). Then explain:
+
+1. **Say where each key is in plain words**: which hand, which row, which finger, and for thumbs,
    which thumb key counting from the inside. Put MoErgo's position name in brackets after it, e.g.
    "right hand, bottom row, index finger stretching toward the middle (RH C1R4)". Skip array indexes
    unless the user asks for them.
