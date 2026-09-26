@@ -1,0 +1,29 @@
+{
+  "skill_name": "go60",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "missä on å-kirjain mun go60 näppiksessä? ja miten saan kirjoitettua aaltosulkeen {",
+      "expected_output": "Finnish answer: å is on the base layer at the right hand extra bottom row, middle finger (RH C3R5), and on SymbolNav (LH C4R4, hold the left innermost thumb key). { is AltGr (hold right innermost thumb, RH T1) + 7 (right number row, index finger). Plain-language positions, short.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I'm new to this split keyboard. How do I get arrow keys on my Go60 and what's the best way to use them while typing code?",
+      "expected_output": "Arrows are on SymbolNav (hold LH T1): left hand E/S/D/F-style cluster (↑ at LH C3R2, ← ↓ → on the home row) and right hand; also Keypad layer has arrows on the left. Explains hold vs double-tap lock and returning to base. Beginner-friendly.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "my go60 suddenly types numbers instead of letters on the right side, what happened?",
+      "expected_output": "Explains the Keypad layer is probably locked on (double-tap of RH C6R4, right pinky outer bottom key); single-tap that key to return to Base. Uses the real layout, not guesses.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "open the go60 cheat sheet",
+      "expected_output": "Runs go60-keys cheatsheet --open and tells the user it opened in the browser.",
+      "files": []
+    }
+  ]
+}

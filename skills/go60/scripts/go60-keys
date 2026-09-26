@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""go60-keys: answer questions about the flashed Go60 layout (layout/current.json).
+
+  go60-keys find TEXT...        where is a character, key or function?
+                                  e.g.  find å   find '{'   find enter   find UP   find bootloader
+  go60-keys key POSITION...     what a key does on every layer (0-59, or 'LH T1', 'RH C3R2')
+  go60-keys layers              list the layers and how to reach each one
+  go60-keys show [LAYER...]     draw layers as the physical keyboard, with Finnish legends
+  go60-keys cheatsheet [--open] [-o FILE]
+                                write the interactive HTML cheat sheet
+
+Options: --file PATH (another layout JSON export), --all (include the factory test layer)
+Legends are what the keys type with the Finnish (fi) keyboard layout.
+"""
+
+import argparse
+import html
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import keymap as km  # noqa: E402
+
+WORDS = {
+    "enter": ["RET", "KP_ENTER"], "return": ["RET"], "backspace": ["BSPC"], "bspc": ["BSPC"],
+    "delete": ["DEL"], "del": ["DEL"], "space": ["SPACE"], "spacebar": ["SPACE"], "tab": ["TAB"],
+    "esc": ["ESC"], "escape": ["ESC"], "shift": ["LSHFT", "RSHFT"], "ctrl": ["LCTRL", "RCTRL"],
+    "control": ["LCTRL", "RCTRL"], "alt": ["LALT"], "altgr": ["RALT"], "super": ["LGUI", "RGUI"],
+    "win": ["LGUI", "RGUI"], "windows": ["LGUI", "RGUI"], "gui": ["LGUI", "RGUI"],
+    "up": ["UP"], "down": ["DOWN"], "left": ["LEFT"], "right": ["RIGHT"],
+    "arrows": ["UP", "DOWN", "LEFT", "RIGHT"], "home": ["HOME"], "end": ["END"],
+    "pageup": ["PG_UP"], "pagedown": ["PG_DN"], "pgup": ["PG_UP"], "pgdn": ["PG_DN"],
+    "insert": ["INS"], "capslock": ["CAPS"], "caps": ["CAPS"], "printscreen": ["PSCRN"],
+    "menu": ["K_APP"], "numlock": ["KP_NUM"],
+    "volume": ["C_VOL_UP", "C_VOL_DN", "C_MUTE"], "mute": ["C_MUTE"],
+    "play": ["C_PP"], "pause": ["C_PP"], "brightness": ["C_BRI_UP", "C_BRI_DN"],
+}
+BEHAVIORS = {
+    "bootloader": ["&bootloader"], "flash": ["&bootloader"], "reset": ["&reset"],
+    "bluetooth": ["&bt", "&bt_0", "&bt_1", "&bt_2", "&bt_3"], "bt": ["&bt", "&bt_0", "&bt_1", "&bt_2", "&bt_3"],
+    "usb": ["&out"], "output": ["&out"], "rgb": ["&rgb_ug"], "lights": ["&rgb_ug"], "magic": ["&magic"],
+}
+LEVEL_MODS = {0: set(), 1: {"shift"}, 2: {"altgr"}, 3: {"shift", "altgr"}}
+LEVEL_WORDS = {1: "Shift", 2: "AltGr", 3: "Shift + AltGr"}
+
+
+def where(i):
+    return f"{km.position_name(i)}: {km.position_words(i)}  [index {i}]"
+
+
+def layer_heading(L, l):
+    if l == 0:
+        return f"{L.names[0]} layer (layer 0, always active)"
+    return f"{L.names[l]} layer (layer {l})"
+
+
+def reach_lines(L, l, indent="      "):
+    if l == 0:
+        return []
+    ways = [w for w in L.reach(l) if w[0] == 0] or L.reach(l)[:2]
+    if not ways:
+        return [f"{indent}(no key on the other layers switches to this layer)"]
+    lines = []
+    for src, i, how in ways:
+        from_txt = "" if src == 0 else f" (from the {L.names[src]} layer)"
+        lines.append(f"{indent}To get there: {how}{from_txt}: {where(i)}")
+    return lines
+
+
+def modifier_keys(L, mod):
+    """Where a modifier (shift/altgr/...) lives on the base layer."""
+    out = []
+    for i, b in enumerate(L.layers[0]):
+        d = L.describe(b)
+        if mod in d["holds"] or any(c in km.MOD_KEYS and km.MOD_KEYS[c] == mod and not m for c, m in d["taps"]):
+            out.append((i, d))
+    return out
+
+
+def char_targets(ch):
+    """All (code, level) that type ch with the Finnish layout."""
+    out = []
+    for code, legends in km.FI.items():
+        for level, s in enumerate(legends):
+            if s == ch:
+                out.append((code, level))
+    return out
+
+
+def find(L, query, include_test):
+    q = query.strip() if query.strip() else query
+    layers = [l for l in range(len(L.layers)) if include_test or not L.is_test_layer(l)]
+    print()
+
+    # A single character: search by what it types with the Finnish layout.
+    if len(q) == 1:
+        targets = char_targets(q)
+        if not targets:
+            print(f"{q!r}: can't be typed with a single key combination on the Finnish layout"
+                  " (it may need a dead key, Compose or a macro).")
+            return
+        ways = []
+        for c, lv in targets:
+            name = f"keypad {q}" if c.startswith("KP_") else km.key_label(c, set()) if lv else f"the {q} key"
+            w = ("" if lv == 0 else LEVEL_WORDS[lv] + " + ") + name + (" (dead key)" if (c, lv) in km.DEAD else "")
+            if w not in ways:
+                ways.append(w)
+        how = " or ".join(ways)
+        print(f"{q}   (Finnish layout: {how})")
+        hits = []
+        for l in layers:
+            for i, b in enumerate(L.layers[l]):
+                d = L.describe(b)
+                for code, mods in d["taps"]:
+                    for tcode, lv in targets:
+                        if code != tcode:
+                            continue
+                        if mods == LEVEL_MODS[lv]:
+                            hits.append((l, i, 0, f"types {q} directly ({d['zmk']})"))
+                        elif not mods and lv:
+                            hits.append((l, i, 1, f"hold {LEVEL_WORDS[lv]} and press this key "
+                                                   f"(it types {km.key_label(code, set())})"))
+        print_hits(L, hits, extra_mods={m for _, lv in targets for m in LEVEL_MODS[lv]})
+        return
+
+    key = q.lower().replace(" ", "").replace("-", "").replace("_", "")
+    # A named function (bootloader, bluetooth, ...).
+    if key in BEHAVIORS:
+        hits = [(l, i, 0, L.describe(b)["text"]) for l in layers for i, b in enumerate(L.layers[l])
+                if b.get("value") in BEHAVIORS[key]]
+        print(f"{query}")
+        print_hits(L, hits)
+        return
+
+    # A key name (enter, shift, UP, BSPC, LS(N7) ...).
+    codes = WORDS.get(key)
+    if codes is None:
+        codes = [km.canonical(q.upper())[0]]
+    mod_names = {km.MOD_KEYS[c] for c in codes if c in km.MOD_KEYS}
+    hits = []
+    for l in layers:
+        for i, b in enumerate(L.layers[l]):
+            d = L.describe(b)
+            if any(code in codes for code, _ in d["taps"]):
+                hits.append((l, i, 0, d["text"] or d["zmk"]))
+            elif mod_names & set(d["holds"]):
+                hits.append((l, i, 1, d["text"]))
+    print(f"{query}   ({', '.join(codes)})")
+    print_hits(L, hits)
+
+
+def print_hits(L, hits, extra_mods=()):
+    if not hits:
+        print("  Not found on any layer.")
+        return
+    seen = set()
+    for l in sorted({h[0] for h in hits}):
+        print(f"  {layer_heading(L, l)}")
+        for _, i, _, text in sorted((h for h in hits if h[0] == l), key=lambda h: (h[2], h[1])):
+            if (l, i, text) in seen:
+                continue
+            seen.add((l, i, text))
+            print(f"    • {where(i)}")
+            print(f"      {text}")
+        for line in reach_lines(L, l):
+            print(line)
+    for mod in sorted(extra_mods):
+        keys = modifier_keys(L, mod)
+        if keys:
+            locs = "; ".join(f"{km.position_name(i)} ({km.position_words(i)}): {d['text']}" for i, d in keys)
+            print(f"  {km.MOD_LABEL[mod]} is on the base layer at {locs}")
+        else:
+            print(f"  No {km.MOD_LABEL[mod]} key on the base layer.")
+
+
+def key_info(L, text, include_test):
+    i = km.parse_position(text)
+    print()
+    print(where(i))
+    for l in range(len(L.layers)):
+        if L.is_test_layer(l) and not include_test:
+            continue
+        d = L.describe(L.layers[l][i])
+        extra = ""
+        if d["kind"] == "trans":
+            _, eff = L.effective(l, i)
+            extra = f"  → {eff['text']}"
+        print(f"  {L.names[l]:<12} {d['zmk']:<22} {d['text']}{extra}")
+
+
+def list_layers(L):
+    print()
+    for l, name in enumerate(L.names):
+        print(f"{l}: {name}" + ("  (factory switch-test layer, not for typing)" if L.is_test_layer(l) else ""))
+        if l == 0:
+            print("     the default layer, always active")
+        for line in reach_lines(L, l, indent="     "):
+            print(line)
+
+
+# ---------------------------------------------------------- text drawing ---
+
+LEFT_COLS = [6, 5, 4, 3, 2, 1]
+
+
+def index_at(side, kind, n, row):
+    for i, p in km.POSITIONS.items():
+        if p == (side, kind, n, row):
+            return i
+    return None
+
+
+def show(L, which, include_test):
+    layers = [L.layer_index(w) for w in which] if which else \
+        [l for l in range(len(L.layers)) if include_test or not L.is_test_layer(l)]
+    for l in layers:
+        labels = {i: L.describe(b)["label"] or "·" for i, b in enumerate(L.layers[l])}
+        w = min(9, max(5, max(len(s) for s in labels.values())))
+
+        def cell(i):
+            s = labels[i] if i is not None else ""
+            return (s if len(s) <= w else s[:w - 1] + "…").center(w)
+        print()
+        print(f"== {L.names[l]} (layer {l}) ==   ▽ = same as base layer, · = nothing")
+        for row in range(1, 6):
+            left = [index_at("L", "C", c, row) for c in LEFT_COLS]
+            right = [index_at("R", "C", c, row) for c in reversed(LEFT_COLS)]
+            print(" ".join(cell(i) for i in left) + "   ║   " + " ".join(cell(i) for i in right))
+        lt = [index_at("L", "T", t, None) for t in (3, 2, 1)]
+        rt = [index_at("R", "T", t, None) for t in (1, 2, 3)]
+        pad = " " * ((w + 1) * 3)
+        print(pad + " ".join(cell(i) for i in lt) + "   ║   " + " ".join(cell(i) for i in rt))
+        print(" " * ((w + 1) * 3) + "(thumbs T3 T2 T1)".center((w + 1) * 3) + "       " +
+              "(thumbs T1 T2 T3)".center((w + 1) * 3))
+
+
+# ------------------------------------------------------------ cheat sheet ---
+
+def cheatsheet_data(L):
+    layers = []
+    for l, name in enumerate(L.names):
+        keys = []
+        for i, b in enumerate(L.layers[l]):
+            d = L.describe(b)
+            k = {"i": i, "pos": km.position_name(i), "where": km.position_words(i), "kind": d["kind"],
+                 "label": d["label"], "sub": d["sub"], "text": d["text"], "zmk": d["zmk"],
+                 "types": [c for c in (km.fi_char(code, mods) for code, mods in d["taps"]) if c and c.strip()]}
+            if d["kind"] == "trans":
+                src, eff = L.effective(l, i)
+                k["under"] = eff["label"]
+                k["types"] = [c for c in (km.fi_char(code, mods) for code, mods in eff["taps"]) if c and c.strip()]
+            keys.append(k)
+        reach = [{"from": L.names[src], "pos": km.position_name(i), "where": km.position_words(i), "how": how}
+                 for src, i, how in L.reach(l)]
+        layers.append({"n": l, "name": name, "test": L.is_test_layer(l), "keys": keys, "reach": reach})
+    mods = {}
+    for mod in ("shift", "altgr", "ctrl", "alt", "super"):
+        mods[km.MOD_LABEL[mod]] = [km.position_name(i) for i, _ in modifier_keys(L, mod)]
+    return {"title": L.data.get("title", "Go60 layout"), "uuid": L.data.get("uuid", ""),
+            "locale": L.data.get("locale", ""), "notes": L.data.get("notes", ""),
+            "date": L.data.get("date"), "layers": layers, "mods": mods,
+            "positions": {i: list(p) for i, p in km.POSITIONS.items()}}
+
+
+def cheatsheet(L, out, open_it):
+    template = (km.SKILL_DIR / "assets" / "cheatsheet.html").read_text(encoding="utf-8")
+    data = json.dumps(cheatsheet_data(L), ensure_ascii=False).replace("</", "<\\/")
+    page = template.replace("/*__GO60_DATA__*/null", data)
+    page = page.replace("__GO60_TITLE__", html.escape(L.data.get("title", "Go60 layout")))
+    out = Path(out).expanduser()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(page, encoding="utf-8")
+    print(out)
+    if open_it:
+        subprocess.Popen(["xdg-open", str(out)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+
+
+def default_cheatsheet_path():
+    cache = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return Path(cache) / "go60" / "cheatsheet.html"
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="go60-keys", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--file", help="layout JSON export (default: layout/current.json in the go60-config repo)")
+    ap.add_argument("--all", action="store_true", help="include the factory test layer")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("find"); p.add_argument("text", nargs="+")
+    p = sub.add_parser("key"); p.add_argument("position", nargs="+")
+    sub.add_parser("layers")
+    p = sub.add_parser("show"); p.add_argument("layer", nargs="*")
+    p = sub.add_parser("cheatsheet")
+    p.add_argument("-o", "--output", default=str(default_cheatsheet_path()))
+    p.add_argument("--open", action="store_true")
+    args = ap.parse_args()
+
+    try:
+        L = km.Layout(km.load_layout(args.file))
+    except FileNotFoundError as e:
+        sys.exit(f"go60-keys: no layout file ({e.filename}). Flash with go60-flash and a JSON export first.")
+    try:
+        if args.cmd == "find":
+            for t in args.text:
+                find(L, t, args.all)
+        elif args.cmd == "key":
+            for t in args.position:
+                key_info(L, t, args.all)
+        elif args.cmd == "layers":
+            list_layers(L)
+        elif args.cmd == "show":
+            show(L, args.layer, args.all)
+        elif args.cmd == "cheatsheet":
+            cheatsheet(L, args.output, args.open)
+    except ValueError as e:
+        sys.exit(f"go60-keys: {e}")
+
+
+if __name__ == "__main__":
+    main()

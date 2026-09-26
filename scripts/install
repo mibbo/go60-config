@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Install this repo's tools on this machine (safe to re-run):
+#   ~/.local/bin/go60-flash, ~/.local/bin/go60-keys  -> commands on PATH
+#   ~/.claude/skills/go60                            -> the Claude Code skill
+# Everything is a symlink into the repo, so `git pull` updates it all.
+
+set -euo pipefail
+REPO_DIR=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
+
+link() { # target link
+  mkdir -p "$(dirname "$2")"
+  if [[ -e $2 && ! -L $2 ]]; then
+    echo "skip: $2 exists and is not a symlink" >&2
+    return
+  fi
+  ln -sfn "$1" "$2"
+  echo "$2 -> $1"
+}
+
+link "$REPO_DIR/scripts/go60-flash" "$HOME/.local/bin/go60-flash"
+link "$REPO_DIR/skills/go60/scripts/go60-keys" "$HOME/.local/bin/go60-keys"
+link "$REPO_DIR/skills/go60" "$HOME/.claude/skills/go60"
+
+# Old name of the layout viewer (replaced by `go60-keys show`).
+[[ -L $HOME/.local/bin/go60-layout ]] && rm "$HOME/.local/bin/go60-layout" && echo "removed old go60-layout link"
+
+"$REPO_DIR/skills/go60/scripts/go60-keys" cheatsheet >/dev/null && echo "cheat sheet: go60-keys cheatsheet --open"

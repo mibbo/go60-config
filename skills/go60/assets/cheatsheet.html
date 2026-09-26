@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Go60 Cheat Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --ground: #eceef1;
+  --plate: #d9dee4;
+  --plate-edge: #c6ccd4;
+  --cap: #fbfcfd;
+  --cap-edge: #c9cfd7;
+  --ink: #1b2129;
+  --muted: #5d6877;
+  --faint: #9aa4b1;
+  --accent: #0e7680;
+  --focus: #0e7680;
+  --t-mod: #e2e5fa;   --t-mod-ink: #3b44a3;
+  --t-layer: #d7f0ee; --t-layer-ink: #0b6169;
+  --t-nav: #dfeefb;   --t-nav-ink: #245f93;
+  --t-system: #fbecd6; --t-system-ink: #8a5212;
+  --t-media: #efe3f7; --t-media-ink: #6b3a8c;
+  --hit: #f2c230;
+  --panel: #ffffff;
+  --u: 56px;
+  --sans: "Atkinson Hyperlegible", "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #121519; --plate: #1a1f26; --plate-edge: #2a313a; --cap: #262c35; --cap-edge: #37404b;
+    --ink: #e6eaf0; --muted: #9aa5b3; --faint: #5f6a78; --accent: #4fc2c9; --focus: #4fc2c9;
+    --t-mod: #2b2f55; --t-mod-ink: #b8bdf5; --t-layer: #173b3d; --t-layer-ink: #86dcd9;
+    --t-nav: #1d3348; --t-nav-ink: #9cc9f2; --t-system: #3d2d17; --t-system-ink: #f1c07a;
+    --t-media: #33243f; --t-media-ink: #d8b3f0; --hit: #e0b21e; --panel: #1b2027;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #121519; --plate: #1a1f26; --plate-edge: #2a313a; --cap: #262c35; --cap-edge: #37404b;
+  --ink: #e6eaf0; --muted: #9aa5b3; --faint: #5f6a78; --accent: #4fc2c9; --focus: #4fc2c9;
+  --t-mod: #2b2f55; --t-mod-ink: #b8bdf5; --t-layer: #173b3d; --t-layer-ink: #86dcd9;
+  --t-nav: #1d3348; --t-nav-ink: #9cc9f2; --t-system: #3d2d17; --t-system-ink: #f1c07a;
+  --t-media: #33243f; --t-media-ink: #d8b3f0; --hit: #e0b21e; --panel: #1b2027;
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); }
+body {
+  margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.5 var(--sans);
+  padding-inline: 16px; padding-block: 20px 48px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+h1 { margin: 0; font-size: 1.6rem; line-height: 1.2; text-wrap: balance; }
+.meta { color: var(--muted); font-size: .9rem; }
+.meta code { font-family: var(--mono); font-size: .8rem; }
+.search { display: flex; gap: 8px; align-items: center; }
+.search label { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.search input {
+  font: inherit; width: 16rem; max-width: 60vw; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--cap-edge); background: var(--panel); color: var(--ink);
+}
+.search input:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab {
+  font: inherit; font-weight: 700; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--cap-edge); background: var(--panel); color: var(--ink);
+  display: inline-flex; gap: 8px; align-items: center;
+}
+.tab small { font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: .75rem; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.tab[aria-selected="true"] small { color: var(--ground); opacity: .7; }
+.tab .count { background: var(--hit); color: #1b1600; border-radius: 999px; padding: 0 7px; font-size: .75rem; }
+.reach { margin: 0; color: var(--muted); max-width: 70ch; }
+.reach b { color: var(--ink); }
+.board-scroll { overflow-x: auto; padding-block: 4px 8px; }
+.board {
+  display: flex; gap: calc(var(--u) * 0.9); justify-content: center; min-width: max-content;
+  padding: 18px 22px 12px; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 22px;
+}
+.half { position: relative; width: calc(var(--u) * 6.35); height: calc(var(--u) * 6.75); }
+.half-name {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--u) * -0.1); text-align: center;
+  font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+.key {
+  position: absolute; width: calc(var(--u) - 6px); height: calc(var(--u) - 6px);
+  border-radius: 9px; border: 1px solid var(--cap-edge); border-bottom-width: 3px;
+  background: var(--cap); color: var(--ink); font: inherit; cursor: pointer; padding: 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  transition: transform .12s ease, box-shadow .12s ease; overflow: hidden;
+}
+.key.wide { width: calc(var(--u) * 1.5 - 6px); }
+.key .lab { font-weight: 700; font-size: 1.05rem; line-height: 1.1; max-width: 100%; overflow-wrap: normal; text-align: center; }
+.key .lab.long { font-size: .68rem; }
+.key .lab.mid { font-size: .82rem; }
+.key .sub { font-size: .58rem; line-height: 1.1; color: var(--muted); text-align: center; }
+.key.k-mod { background: var(--t-mod); color: var(--t-mod-ink); }
+.key.k-layer { background: var(--t-layer); color: var(--t-layer-ink); }
+.key.k-nav { background: var(--t-nav); color: var(--t-nav-ink); }
+.key.k-system { background: var(--t-system); color: var(--t-system-ink); }
+.key.k-media { background: var(--t-media); color: var(--t-media-ink); }
+.key.k-mod .sub, .key.k-layer .sub, .key.k-nav .sub, .key.k-system .sub, .key.k-media .sub { color: inherit; opacity: .75; }
+.key.k-trans { background: transparent; border-style: dashed; color: var(--faint); }
+.key.k-trans .lab { font-weight: 400; }
+.key.k-none { background: transparent; border-style: dotted; border-color: var(--plate-edge); }
+.key.sel { box-shadow: 0 0 0 3px var(--accent); z-index: 2; }
+.key.hit { box-shadow: 0 0 0 3px var(--hit), 0 0 18px var(--hit); z-index: 3; }
+.key.dim { opacity: .35; }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.panel { background: var(--panel); border: 1px solid var(--cap-edge); border-radius: 14px; padding: 14px 16px; }
+.panel h2 { margin: 0 0 6px; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.panel p { margin: 4px 0; }
+.panel code { font-family: var(--mono); font-size: .82rem; }
+.big { font-size: 1.25rem; font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; color: var(--muted); }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 5px; border: 1px solid var(--cap-edge); }
+ul.plain { margin: 4px 0; padding-left: 18px; }
+.notes { white-space: pre-wrap; color: var(--muted); font-size: .88rem; max-width: 80ch; }
+details summary { cursor: pointer; color: var(--muted); }
+.print-only { display: none; }
+@media (max-width: 700px) { :root { --u: 44px; } .key .lab { font-size: .9rem; } }
+@media (prefers-reduced-motion: reduce) { .key { transition: none; } }
+@media print {
+  :root { --u: 40px; }
+  body { background: #fff; color: #000; padding: 0; }
+  .screen-only { display: none !important; }
+  .print-only { display: block; }
+  .print-layer { break-inside: avoid; margin-bottom: 14px; }
+  .print-layer h3 { margin: 0 0 4px; font-size: 1rem; }
+  .board { background: #fff; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="title">__GO60_TITLE__</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="search screen-only">
+      <label for="q">Find</label>
+      <input id="q" type="search" placeholder="å, {, @, Enter, arrows…" autocomplete="off">
+    </div>
+  </header>
+
+  <nav class="tabs screen-only" id="tabs" role="tablist" aria-label="Layers"></nav>
+  <p class="reach screen-only" id="reach"></p>
+
+  <div class="board-scroll screen-only"><div class="board" id="board"></div></div>
+
+  <div class="panels screen-only">
+    <section class="panel" id="detail" aria-live="polite">
+      <h2>Selected key</h2>
+      <p class="meta">Click a key to see what it does and where it is.</p>
+    </section>
+    <section class="panel">
+      <h2>Modifiers on the base layer</h2>
+      <div id="mods"></div>
+      <h2 style="margin-top:12px">Colours</h2>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--cap)"></i>types a character</span>
+        <span><i class="sw" style="background:var(--t-mod)"></i>modifier</span>
+        <span><i class="sw" style="background:var(--t-layer)"></i>layer switch</span>
+        <span><i class="sw" style="background:var(--t-nav)"></i>navigation / shortcut</span>
+        <span><i class="sw" style="background:var(--t-system)"></i>keyboard control</span>
+        <span><i class="sw" style="background:var(--t-media)"></i>media</span>
+        <span><i class="sw" style="border-style:dashed"></i>▽ same as base layer</span>
+      </div>
+    </section>
+  </div>
+
+  <details class="screen-only">
+    <summary>Layout notes from the Layout Editor</summary>
+    <p class="notes" id="notes"></p>
+  </details>
+  <p class="meta screen-only">Legends show what each key types with the Finnish keyboard layout. Positions use MoErgo's
+    names: C1 is the inner column (index finger) and C6 the outer pinky column, R1 is the number row, and T1 is the innermost thumb key.
+    The drawing is schematic, not to scale.</p>
+
+  <div class="print-only" id="print-all"></div>
+</div>
+
+<script>
+const DATA = /*__GO60_DATA__*/null;
+
+const STAGGER = {6: .55, 5: .55, 4: .2, 3: 0, 2: .15, 1: .3};
+// Thumb keys, left half (x, y in key units; rotation in degrees). Mirrored for the right half.
+const THUMBS = {3: [2.75, 5.15, 6, 1.5], 2: [4.35, 5.3, 14, 1], 1: [5.4, 5.62, 24, 1]};
+
+function geom(pos) {
+  const [side, kind, n, row] = pos;
+  let x, y, rot = 0, w = 1;
+  if (kind === "T") { [x, y, rot, w] = THUMBS[n]; }
+  else { x = 6 - n; y = row - 1 + STAGGER[n]; }
+  if (side === "R") { x = 6.35 - x - w; rot = -rot; }
+  return {x, y, rot, w};
+}
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+let current = 0, selected = null, query = "";
+try { const t = parseInt(localStorage.getItem("go60-layer"), 10); if (DATA.layers[t]) current = t; } catch (e) {}
+if (/^#layer-\d+$/.test(location.hash)) { const t = +location.hash.slice(7); if (DATA.layers[t]) current = t; }
+
+const SHORT = {"Backspace": "Bksp", "Delete": "Del", "Scroll Lock": "ScrLk", "Caps Lock": "Caps",
+  "Num Lock": "NumLk", "Enter (keypad)": "Enter", "Insert": "Ins", "Play/Pause": "Play", "Next track": "Next",
+  "Prev track": "Prev", "BT clear all": "BT clr all", "BT clear": "BT clr"};
+const shortLabel = (s) => SHORT[s] || String(s ?? "").replace(/\+/g, "+\u200b");
+
+function sizeClass(s) { const n = [...(s || "")].filter((c) => c !== "\u200b").length; return n > 7 ? "long" : n > 3 ? "mid" : ""; }
+
+function keyHTML(k, interactive) {
+  const g = geom(DATA.positions[k.i]);
+  let lab = k.label, sub = k.sub;
+  if (k.kind === "trans") { lab = k.under || "▽"; sub = "▽ base"; }
+  lab = shortLabel(lab);
+  const style = `left:calc(var(--u)*${g.x});top:calc(var(--u)*${g.y});transform:rotate(${g.rot}deg)`;
+  const cls = `key k-${k.kind}${g.w > 1 ? " wide" : ""}`;
+  const title = `${k.pos} (${k.where}): ${k.text || k.zmk}`;
+  return `<button type="button" class="${cls}" data-i="${k.i}" style="${style}" title="${esc(title)}"` +
+    `${interactive ? "" : ' tabindex="-1"'}><span class="lab ${sizeClass(lab)}">${esc(lab)}</span>` +
+    `${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</button>`;
+}
+
+function boardHTML(layer, interactive) {
+  const halves = {L: [], R: []};
+  for (const k of layer.keys) halves[DATA.positions[k.i][0]].push(keyHTML(k, interactive));
+  return `<div class="half">${halves.L.join("")}<span class="half-name">Left half</span></div>` +
+         `<div class="half">${halves.R.join("")}<span class="half-name">Right half</span></div>`;
+}
+
+function matches(k) {
+  if (!query) return false;
+  const q = query.trim();
+  if (!q) return false;
+  if ([...q].length === 1) return (k.types || []).includes(q) || k.label === q || (k.kind === "trans" && k.under === q);
+  const low = q.toLowerCase();
+  return [k.label, k.text, k.zmk, k.under].some((s) => (s || "").toLowerCase().includes(low));
+}
+
+function renderTabs() {
+  $("#tabs").innerHTML = DATA.layers.map((l) => {
+    const n = query ? l.keys.filter(matches).length : 0;
+    return `<button type="button" class="tab" role="tab" aria-selected="${l.n === current}" data-l="${l.n}">` +
+      `${esc(l.name)} <small>${l.n}</small>${n ? `<span class="count">${n}</span>` : ""}</button>`;
+  }).join("");
+}
+
+function reachText(layer) {
+  if (layer.n === 0) return "<b>Base layer</b>: active whenever no other layer is on.";
+  if (layer.test) return `<b>${esc(layer.name)}</b>: MoErgo's factory switch-test layer, not meant for typing.`;
+  const ways = layer.reach.filter((r) => r.from === DATA.layers[0].name);
+  const list = (ways.length ? ways : layer.reach.slice(0, 2));
+  if (!list.length) return `<b>${esc(layer.name)}</b>: no key switches to this layer.`;
+  return `<b>How to reach ${esc(layer.name)}</b>: ` + list.map((r) =>
+    `${esc(r.how)} (<b>${esc(r.pos)}</b>, ${esc(r.where)}${r.from !== DATA.layers[0].name ? `, on the ${esc(r.from)} layer` : ""})`).join("; ");
+}
+
+function renderDetail() {
+  const box = $("#detail");
+  if (selected === null) return;
+  const layer = DATA.layers[current], k = layer.keys[selected];
+  const others = DATA.layers.filter((l) => l.n !== current && !l.test).map((l) => {
+    const o = l.keys[selected];
+    const what = o.kind === "trans" ? `same as base (${esc(o.under)})` : o.kind === "none" ? "nothing" : esc(o.text || o.label);
+    return `<li><b>${esc(l.name)}</b>: ${what}</li>`;
+  }).join("");
+  box.innerHTML = `<h2>Selected key</h2>
+    <p class="big">${esc(k.kind === "trans" ? k.under : (k.label || "(nothing)"))}</p>
+    <p><b>${esc(k.pos)}</b>: ${esc(k.where)}</p>
+    <p>${esc(k.text)}${k.kind === "trans" ? ` (${esc(k.under)})` : ""}</p>
+    <p class="meta">ZMK: <code>${esc(k.zmk)}</code> · key index ${k.i}</p>
+    <p class="meta" style="margin-top:8px">On the other layers:</p><ul class="plain">${others}</ul>`;
+}
+
+function render() {
+  const layer = DATA.layers[current];
+  renderTabs();
+  $("#reach").innerHTML = reachText(layer);
+  $("#board").innerHTML = boardHTML(layer, true);
+  const anyHit = query && layer.keys.some(matches);
+  for (const el of document.querySelectorAll("#board .key")) {
+    const k = layer.keys[+el.dataset.i];
+    if (matches(k)) el.classList.add("hit"); else if (anyHit) el.classList.add("dim");
+    if (+el.dataset.i === selected) el.classList.add("sel");
+  }
+  renderDetail();
+}
+
+function init() {
+  const d = DATA.date ? new Date(DATA.date * 1000).toISOString().slice(0, 10) : "";
+  $("#meta").innerHTML = `Go60 · Finnish legends (${esc(DATA.locale)}) · saved in the Layout Editor ${esc(d)} · <code>${esc(DATA.uuid.slice(0, 8))}</code>`;
+  $("#notes").textContent = DATA.notes || "(no notes)";
+  $("#mods").innerHTML = "<ul class=\"plain\">" + Object.entries(DATA.mods).map(([m, where]) =>
+    `<li><b>${esc(m)}</b>: ${where.length ? esc(where.join(", ")) : "not on the base layer"}</li>`).join("") + "</ul>";
+  $("#print-all").innerHTML = DATA.layers.filter((l) => !l.test).map((l) =>
+    `<section class="print-layer"><h3>${esc(l.name)} (layer ${l.n})</h3><p class="reach">${reachText(l)}</p>` +
+    `<div class="board">${boardHTML(l, false)}</div></section>`).join("");
+
+  $("#tabs").addEventListener("click", (e) => {
+    const t = e.target.closest(".tab"); if (!t) return;
+    current = +t.dataset.l;
+    try { localStorage.setItem("go60-layer", current); } catch (err) {}
+    render();
+  });
+  $("#board").addEventListener("click", (e) => {
+    const k = e.target.closest(".key"); if (!k) return;
+    selected = +k.dataset.i; render();
+  });
+  $("#q").addEventListener("input", (e) => {
+    query = e.target.value;
+    const layer = DATA.layers[current];
+    if (query && !layer.keys.some(matches)) {
+      const first = DATA.layers.find((l) => !l.test && l.keys.some(matches));
+      if (first) current = first.n;
+    }
+    render();
+  });
+  render();
+}
+init();
+</script>
+</body>
+</html>

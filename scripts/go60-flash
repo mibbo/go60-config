@@ -542,6 +542,9 @@ if [[ -n $LAYOUT_JSON ]]; then
     rm -f -- "$LAYOUT_JSON"
     LAYOUT_SAVED=1
     info "Saved layout “$LAYOUT_TITLE” as layout/${LAYOUT_FILE##*/}"
+    # Refresh the cheat sheet (go60-keys cheatsheet --open) for the new layout.
+    "$REPO_DIR/skills/go60/scripts/go60-keys" --file "$LAYOUT_FILE" cheatsheet >/dev/null 2>&1 ||
+      warn "Couldn't update the cheat sheet (run: go60-keys cheatsheet)."
   else
     rm -f -- "$LAYOUT_FILE.tmp"
     err "Couldn't save ${LAYOUT_JSON##*/} to $LAYOUT_FILE; left it in Downloads."
