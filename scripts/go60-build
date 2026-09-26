@@ -127,7 +127,7 @@ notify-send -a 'Go60 build' 'Go60 build' "Building firmware (ZMK $ZMK)…" 2>/de
 start=$SECONDS
 # Rootless Podman: root in the container is you outside, so the output belongs to you.
 podman run --rm -v "$WORK:/config:Z" -e UID=0 -e GID=0 -e BRANCH="$ZMK" "$IMAGE" ||
-  die "Firmware build failed (see the errors above; typos in key names are the usual cause)."
+  die "Firmware build failed. Look at the first error above: a keymap mistake names the binding, anything else is a build setup problem."
 [[ -f $WORK/go60.uf2 ]] || die "The build finished but produced no go60.uf2."
 ok "Built in $((SECONDS - start)) s."
 

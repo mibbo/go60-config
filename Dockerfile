@@ -1,4 +1,5 @@
-FROM nixpkgs/nix:nixos-23.11
+# Fully qualified (docker.io/...) so Podman can resolve it; MoErgo's template says nixpkgs/nix:nixos-23.11.
+FROM docker.io/nixpkgs/nix:nixos-23.11
 
 ENV PATH=/root/.nix-profile/bin:/usr/bin:/bin
 
@@ -23,20 +24,22 @@ RUN <<EOF
     done
 EOF
 
-COPY --chmod=755 <<EOF /bin/entrypoint.sh
+# Quoted heredoc: no escaping needed, and Podman and Docker treat it the same (MoErgo's
+# template escapes the variables, which only Docker's BuildKit un-escapes).
+COPY --chmod=755 <<'EOF' /bin/entrypoint.sh
 #!/usr/bin/env bash
     set -euo pipefail
-    : "\${BRANCH:=main}"
+    : "${BRANCH:=main}"
 
-    echo "Checking out \$BRANCH from moergo-sc/zmk" >&2
+    echo "Checking out $BRANCH from moergo-sc/zmk" >&2
     cd /src
     git fetch origin
-    git checkout -q --detach "\$BRANCH"
+    git checkout -q --detach "$BRANCH"
 
     echo 'Building Go60 firmware' >&2
     cd /config
     nix-build ./config --arg firmware 'import /src/default.nix {}' -j2 -o /tmp/combined --show-trace
-    install -o "\$UID" -g "\$GID" /tmp/combined/go60.uf2 ./go60.uf2
+    install -o "$UID" -g "$GID" /tmp/combined/go60.uf2 ./go60.uf2
 EOF
 
 ENTRYPOINT ["/bin/entrypoint.sh"]

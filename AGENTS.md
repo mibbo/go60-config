@@ -11,7 +11,7 @@ Omarchy (Arch + Hyprland) with the Finnish keyboard layout (`fi`). The user is n
 |------|------------|
 | `layout/current.json` | The layout that was last flashed (Layout Editor JSON export). `git log -p layout/current.json` shows changes over time. |
 | `firmware/*.uf2` | Every flashed firmware, named `<flash date>_v<firmware version>_<layout name>_<layout id>.uf2`. Binary: don't try to read keymaps from them, and don't edit or rewrite them. |
-| `config/go60.keymap` | The layout as an editable ZMK keymap (generated grid + Finnish legend comments). `config/*` other files and `Dockerfile` are from MoErgo's go60-zmk-config template (commit 8ccc854); `build/` is build output (ignored). |
+| `config/go60.keymap` | The layout as an editable ZMK keymap (generated grid + Finnish legend comments). `config/*` other files and `Dockerfile` are from MoErgo's go60-zmk-config template (commit 8ccc854; the Dockerfile is patched for Podman: fully qualified base image and a quoted entrypoint heredoc); `build/` is build output (ignored). |
 | `scripts/go60-build` | Checks the keymap, commits it, builds with Podman (ZMK version = currently flashed one), then runs `go60-flash --layout-json … --source …`. |
 | `scripts/go60-flash` | Flashing workflow (see `README.md`). Interactive; without the keyboard, only run it with `--dry-run`. |
 | `scripts/install` | Symlinks `go60-flash`, `go60-build`, `go60-keymap`, `go60-keys` and `go60-status` into `~/.local/bin` and the skill into `~/.claude/skills/go60`. |
