@@ -32,10 +32,10 @@ fi
 
 echo
 echo "Firmware"
-# Newest by commit (file names sort wrongly when two flashes share a date),
-# falling back to the newest file on disk if it isn't committed yet.
-last=$(git_ log -1 --diff-filter=A --name-only --format= -- 'firmware/*.uf2' 2>/dev/null | head -n 1)
-[[ -n $last ]] && last="$REPO_DIR/$last"
+# The last "Flash <file>" commit (a rollback re-flashes an older file, so the newest file
+# isn't always the flashed one), or the newest file on disk if it isn't committed yet.
+last=$(git_ log -1 --grep='^Flash ' --format=%s 2>/dev/null | sed 's/^Flash //')
+if [[ -n $last && -f $REPO_DIR/firmware/$last ]]; then last="$REPO_DIR/firmware/$last"; else last=''; fi
 newest=$(ls -1t "$REPO_DIR"/firmware/*.uf2 2>/dev/null | head -n 1)
 [[ -n $newest && ( -z $last || $newest -nt $last ) ]] &&
   [[ -z $(git_ log -1 --format=%H -- "firmware/${newest##*/}" 2>/dev/null) ]] && last=$newest
@@ -43,13 +43,17 @@ if [[ -n $last ]]; then
   n=$(ls -1 "$REPO_DIR"/firmware/*.uf2 | wc -l)
   c=$(git_ log -1 --format=%ct -- "firmware/${last##*/}" 2>/dev/null)
   echo "  last flashed: ${last##*/}"
-  [[ -n $c ]] && echo "  committed $(date -d "@$c" +%F) ($(days_ago "$c")); $n firmware file(s) in the archive"
+  if [[ -n $c ]]; then
+    echo "  committed $(date -d "@$c" +%F) ($(days_ago "$c")); $n firmware file(s) in the archive"
+  else
+    echo "  NOT committed yet: commit it, or re-run go60-flash if the flash didn't finish"
+  fi
   [[ $last =~ _v([0-9.]+)_ ]] && echo "  firmware version: v${BASH_REMATCH[1]}"
 else
   echo "  nothing archived yet"
 fi
 
-src=$(git_ log -1 --format=%b -- 'firmware/*.uf2' 2>/dev/null | sed -n 's/^Source: //p' | head -n 1)
+src=$(git_ log -1 --grep='^Flash ' --format=%b 2>/dev/null | sed -n 's/^Source: //p' | head -n 1)
 [[ -n $src ]] && echo "  source: $src"
 
 echo
@@ -64,6 +68,7 @@ if [[ -f $REPO_DIR/config/go60.keymap ]]; then
   else
     echo "  has errors: run go60-keymap check"
   fi
+  grep -q '^! edits outside' <<<"$chk" && echo "  has hand edits outside the layers/custom sections (see go60-keymap check)"
   [[ -n $(git_ status --porcelain -- config/ 2>/dev/null) ]] && echo "  uncommitted edits in config/"
   if command -v podman >/dev/null; then
     podman image exists go60-zmk-build 2>/dev/null && echo "  build container ready (podman)" ||
@@ -76,6 +81,8 @@ else
 fi
 
 echo
+built=$(ls -1t "$REPO_DIR"/build/*.uf2 2>/dev/null | head -n 1)
+[[ -n $built ]] && echo "Waiting in build/: ${built##*/} (flash with go60-flash or the hotkey)" && echo
 echo "Waiting in $DOWNLOADS"
 found=0
 while IFS= read -r f; do

@@ -484,3 +484,23 @@ def to_json(text, base):
 
 def dumps(data):
     return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+
+
+def _skeleton(text):
+    """The keymap without comments, custom sections and layer bindings, whitespace collapsed:
+    the parts go60-keymap regenerates itself."""
+    _, text = _between(text, CUSTOM_BEHAVIORS_BEGIN, CUSTOM_BEHAVIORS_END)
+    _, text = _between(text, CUSTOM_DT_BEGIN, CUSTOM_DT_END)
+    text = _strip_comments(text)
+    m = re.search(r"\bkeymap\s*\{", text)
+    if m:
+        _, end = _block(text, m.end() - 1)
+        text = text[:m.start()] + "keymap {}" + text[end:]
+    return " ".join(text.split())
+
+
+def untracked_changes(text, data):
+    """True if the keymap has edits outside the layer bindings and the custom sections.
+    Those build fine, but they're lost when the keymap is regenerated (go60-keymap format,
+    or after a Layout Editor flash), and they don't reach the Layout Editor JSON."""
+    return _skeleton(text) != _skeleton(to_keymap(data))

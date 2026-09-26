@@ -43,7 +43,9 @@ ends by running `go60-flash`, so steps 5–7 below apply to it too. The **web ed
    won't know about the change. `go60-flash` warns when it's missing.
 4. **Run `go60-flash`** in a terminal, or press **Super+Shift+Ctrl+K**. It:
    - shows the firmware and its version, and warns if the version differs from the last flash
-   - moves the `.uf2` to `firmware/` and saves the JSON as `layout/current.json` (both leave Downloads)
+   - lists **which keys change** compared to what's on the keyboard, and warns if an editor layout would
+     undo changes flashed from the text keymap (i.e. the keymap wasn't imported into the editor first)
+   - after flashing, moves the `.uf2` to `firmware/` and saves the JSON as `layout/current.json` (both leave Downloads)
    - asks whether one or two USB-C cables are used
 5. **Put each half into bootloader mode** when prompted. Notifications say what to do next.
    - Two cables: connect both, press **Magic + \\** (right half) and then **Magic + Tab** (left half).
@@ -54,7 +56,9 @@ ends by running `go60-flash`, so steps 5–7 below apply to it too. The **web ed
    configuration reset that `go60-flash` prints. Left half: hold Ctrl+E while powering on, for 5 s.
    Right half: hold Alt+I while powering on, for 5 s. Then power both on, press Magic+T twice, and wait
    1 minute. The layout is kept.
-7. **Commit and push** when `go60-flash` asks. If a push fails, `git -C ~/sync/git/go60-config push`
+7. **Commit and push** when `go60-flash` asks. Files are archived, and `layout/current.json` saved, only
+   after at least one half was flashed. If nothing was flashed, everything stays where it was, and
+   running `go60-flash` again retries. If a push fails, `git -C ~/sync/git/go60-config push`
    from a terminal where the SSH key is available.
 
 ## 3. Flash problems
@@ -67,18 +71,17 @@ ends by running `go60-flash`, so steps 5–7 below apply to it too. The **web ed
 - **Drive stays after copying**: the flash didn't finish. `go60-flash` offers to retry. Put the half
   back into bootloader mode.
 - **Halves don't talk to each other after flashing**, or a version changed: do the configuration reset in step 6.
-- **Only one half flashed**: `go60-flash --latest --left-only` (or `--right-only`).
+- **Only one half flashed**: run the retry command `go60-flash` prints at the end, e.g.
+  `go60-flash --left-only "~/sync/git/go60-config/firmware/<file>.uf2"` (or `go60-flash --latest --left-only`).
 
 ## 4. Other tasks
 
 - **Re-flash the current firmware**: `go60-flash --latest`.
-- **Roll back to an older firmware**: `go60-flash firmware/<older file>.uf2`. Note that
-  `layout/current.json` isn't rolled back automatically, so this skill would describe the wrong layout.
-  Restore the matching JSON from git (`git log -- layout/current.json`, then
-  `git checkout <commit> -- layout/current.json`), or import that JSON back into the Layout Editor and
-  flash normally.
-- **See what changed in the layout**: `git log -p layout/current.json`, or compare two versions with
-  `go60-keys --file <exported.json> show`.
+- **Roll back to an older firmware**: `go60-flash firmware/<older file>.uf2`. `go60-flash` restores the
+  layout that was committed together with that firmware, so `layout/current.json`, the keymap and this skill
+  match the keyboard again. It lists the keys that change before you confirm.
+- **See what changed in the layout**: `git log -p layout/current.json`, or list changed keys between two
+  layout JSONs with `go60-keymap diff old.json new.json`.
 - **New computer**: `gh repo clone go60-config ~/sync/git/go60-config`, then `scripts/install`. Add the
   Hyprland shortcut again with the omarchy skill if it's needed.
 

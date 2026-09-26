@@ -7,8 +7,9 @@ The layout can be changed in two ways, and both end in `go60-flash`:
   and then runs `go60-flash`.
 
 `layout/current.json` always describes what's flashed, whichever way was used. After an editor flash,
-`go60-flash` also regenerates the keymap, so the text version stays current. It only skips that if the
-keymap has edits that were never flashed, and it warns about it.
+`go60-flash` also regenerates the keymap, so the text version stays current. It skips that, with a warning,
+if the keymap has edits that were never flashed. Then `go60-keymap merge` keeps those edits on top of the
+new layout. `go60-build` offers the same merge if you build in that situation.
 
 ## Contents
 1. Workflow
@@ -99,6 +100,8 @@ Key codes are US names. Pick the code that types the right **Finnish** character
 
 ## 4. Switching back to the Layout Editor
 
+**Do this before editing in the web editor again**, or the editor's (older) layout undoes your keymap
+changes when you flash it. `go60-flash` lists the key changes and warns if that's about to happen.
 `go60-keymap to-json -o ~/Downloads/go60-from-keymap.json` writes the keymap in the editor's format. Import
 it in the editor: enable Settings → *Local Backup and Restore*, then use the import control at the bottom left.
 MoErgo notes that the JSON format may change between editor versions. After that, edit in the editor and flash
@@ -111,5 +114,13 @@ as usual, and `go60-flash` brings the keymap along.
 - **Unknown key code**: usually a typo (`PAUSE_BRAEK`). ZMK's key names are listed at zmk.dev/docs/keymaps/list-of-keycodes.
 - **Build fails**: read the first error line. It usually names the bad binding or behavior.
 - **`go60-build` warns that the editor layout is newer**: the keyboard was flashed from the editor after
-  the keymap was last edited. Choose **update** to start from the flashed layout.
+  the keymap was last edited. Choose **merge** to keep your keymap edits on top of the flashed layout. Choose
+  **use the flashed layout** to drop them.
+- **`go60-keymap check` warns about "edits outside the layer bindings and the custom sections"**: something
+  in the generated parts was changed by hand (e.g. a `tapping-term-ms`). It builds, but `go60-keymap format`
+  and editor flashes regenerate those parts, and the editor JSON doesn't include them. Move your own
+  behaviors into the custom behaviors section.
+- **`go60-flash` warns that an editor layout undoes keymap changes**: you flashed from the keymap, then
+  built in the editor without importing the keymap there first. Cancel, import the keymap into the editor
+  (`go60-keymap to-json`), and rebuild there. Or flash anyway if undoing those changes is what you want.
 - **Podman missing**: `omarchy pkg add podman`.

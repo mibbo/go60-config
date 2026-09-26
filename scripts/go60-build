@@ -80,7 +80,7 @@ command -v podman >/dev/null || die "Podman is not installed. Install it with: o
 info "Checking config/go60.keymap"
 "$TOOLS/go60-keymap" check || { ask "The check found problems. Build anyway?" n || exit 1; }
 
-last_source=$(git -C "$REPO_DIR" log -1 --format=%b -- 'firmware/*.uf2' layout/current.json 2>/dev/null |
+last_source=$(git -C "$REPO_DIR" log -1 --grep='^Flash ' --format=%b 2>/dev/null |
   sed -n 's/^Source: //p' | head -n 1)
 keymap_changed_after=$(git -C "$REPO_DIR" log -1 --format=%ct -- config/go60.keymap 2>/dev/null)
 layout_changed_after=$(git -C "$REPO_DIR" log -1 --format=%ct -- layout/current.json 2>/dev/null)
@@ -89,8 +89,11 @@ if [[ $last_source == "Layout Editor" && -n $layout_changed_after &&
    ! "$TOOLS/go60-keymap" check 2>/dev/null | grep -q '^No changes'; then
   warn "The keyboard runs a layout flashed from the Layout Editor that is newer than this keymap."
   warn "Building the keymap would undo those editor changes."
-  read -rp "[u]pdate the keymap from the flashed layout first, [c]ontinue anyway, or [q]uit? [u/c/Q] " r || r=q
+  "$TOOLS/go60-keymap" merge --dry-run | sed 's/^/    /'
+  read -rp "[m]erge (keep your keymap edits on top of the flashed layout), [u]se the flashed layout (drop your edits), [c]ontinue anyway, or [q]uit? [m/u/c/Q] " r || r=q
   case ${r,,} in
+    m*) "$TOOLS/go60-keymap" merge || exit 1
+        "$TOOLS/go60-keymap" check || exit 1 ;;   # then build the merged keymap below
     u*) "$TOOLS/go60-keymap" init --force || exit 1
         info "Keymap updated from the flashed layout. Make your edits again, then re-run go60-build."
         exit 0 ;;
@@ -120,7 +123,7 @@ SHA=$(git -C "$REPO_DIR" log -1 --format=%h -- config/ 2>/dev/null)
 
 # --- 3. build
 if [[ -z $ZMK ]]; then
-  last=$(git -C "$REPO_DIR" log -1 --diff-filter=A --name-only --format= -- 'firmware/*.uf2' 2>/dev/null | head -n 1)
+  last=$(git -C "$REPO_DIR" log -1 --grep='^Flash ' --format=%s 2>/dev/null)
   [[ $last =~ _v([0-9]+\.[0-9]+)_ ]] && ZMK="v${BASH_REMATCH[1]}"
   ZMK=${ZMK:-v25.11}
 fi
@@ -145,7 +148,7 @@ ok "Built in $((SECONDS - start)) s."
 mkdir -p "$REPO_DIR/build"
 uuid=$(jq -r '.uuid // "00000000-0000-0000-0000-000000000000"' "$LAYOUT")
 OUT="$REPO_DIR/build/${uuid}_v${VERSION}_keymap ${SHA:-local}.uf2"
-cp "$WORK/go60.uf2" "$OUT"
+install -m 644 "$WORK/go60.uf2" "$OUT"
 "$TOOLS/go60-keymap" to-json -o "$REPO_DIR/build/layout.json" >/dev/null || die "Couldn't convert the keymap to layout JSON."
 ok "Firmware: build/${OUT##*/}"
 notify-send -a 'Go60 build' 'Go60 build' "Firmware built ✓" 2>/dev/null

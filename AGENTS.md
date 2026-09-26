@@ -61,6 +61,12 @@ Rules of thumb:
 - After changing the converter, the JSON → keymap → JSON round trip must stay lossless:
   `go60-keymap --keymap /tmp/t.keymap init --from layout/current.json` checks it. Then run `go60-keymap check`
   on the real keymap.
-- `layout/current.json` must always describe what's flashed. Only `go60-flash` writes it.
+- `layout/current.json` must always describe what's flashed. Only `go60-flash` writes it, and only after at
+  least one half was flashed (rollbacks restore the layout committed with that firmware).
+- End-to-end test without the keyboard: copy the repo to a scratch dir, run `git remote remove origin` there,
+  and set `GO60_DOWNLOADS` to a scratch dir. Then run that copy's scripts with `GO60_TEST_APPLY_FILES=1` and
+  `--dry-run`. The drives are simulated, but archiving, layout saving, keymap sync and commits really happen
+  (in the copy). Cover editor flash, unflashed keymap edits + editor flash (no overwrite; `go60-keymap merge`),
+  build path, stale editor layout warning, rollback, and nothing flashed. Never set that variable in the real repo.
 - The repo follows MoErgo's template layout (`config/`, `Dockerfile` at the top level). Builds are local only;
   don't add MoErgo's GitHub Actions workflow unless asked.

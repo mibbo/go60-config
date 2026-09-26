@@ -83,7 +83,10 @@ and the rules that keep the file convertible. Then:
 4. Tell the user to run `go60-build`. It commits, builds and flashes, and flashing needs them at the keyboard.
 
 If the user prefers the web Layout Editor, describe the change as editor steps instead. Both paths are
-fully supported: after an editor flash, `go60-flash` updates the keymap to match.
+fully supported: after an editor flash, `go60-flash` updates the keymap to match. If the keymap had
+unflashed edits, it doesn't, and `go60-keymap merge` combines them. Before going back to the editor after
+keymap flashes, the user must import the keymap there (`go60-keymap to-json`), or the editor's older layout
+undoes those changes.
 
 ## Flashing, changing the layout, and "how does this work again?"
 

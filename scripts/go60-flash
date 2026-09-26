@@ -79,7 +79,7 @@ Flash a MoErgo Go60 firmware (.uf2) onto both halves.
 Without a file argument, the newest *.uf2 in $DOWNLOADS_DIR is used and moved
 into $FIRMWARE_DIR. A firmware built from the keymap (build/, by go60-build) is
 picked up too; if the keymap has changes that were never built, it offers to
-build and flash them. With nothing new, it offers to re-flash the latest archived one.
+build and flash them. With nothing new, it offers to re-flash the current firmware.
 A layout JSON export with the same layout ID in Downloads is saved as
 $LAYOUT_FILE and removed from Downloads.
 
@@ -88,7 +88,7 @@ Options:
   -2, --two-cables      Two USB cables: both halves connected at the same time
       --right-only      Only flash the right half
       --left-only       Only flash the left half
-  -l, --latest          Re-flash the latest archived firmware
+  -l, --latest          Re-flash the firmware that's on the keyboard (the last one flashed)
       --layout-json FILE  Save FILE as layout/current.json instead of looking for a
                         Layout Editor export in Downloads (go60-build uses this)
       --source TEXT     Where the firmware came from, recorded in the commit
@@ -150,6 +150,18 @@ archived_files() {
     printf '%s\t%s\t%s\n' "${f##*/}" "$(stat -c %Y -- "$f")" "$f"
   done | sort -t $'\t' -k1,1.10 -k2,2n | cut -f3-
   shopt -u nullglob
+}
+
+# The firmware that's on the keyboard: the file of the last "Flash <file>" commit (after a
+# rollback that isn't the newest file), else the newest archived file.
+flashed_firmware() {
+  local f
+  f=$(git -C "$REPO_DIR" log -1 --grep='^Flash ' --format=%s 2>/dev/null | sed 's/^Flash //')
+  if [[ -n $f && -f $FIRMWARE_DIR/$f ]]; then
+    printf '%s\n' "$(readlink -f -- "$FIRMWARE_DIR/$f")"
+  else
+    archived_files | tail -n 1
+  fi
 }
 
 newest_download() {
@@ -403,7 +415,9 @@ summary() {
 
 # ------------------------------------------------------------------- main ---
 
+LAYOUT_TMP=''
 cleanup() {
+  [[ -n $LAYOUT_TMP ]] && rm -f -- "$LAYOUT_TMP"
   [[ -n $SIM_PID ]] && kill "$SIM_PID" 2>/dev/null
   [[ -n $SIM_ROOT && -d $SIM_ROOT ]] && rm -rf "$SIM_ROOT"
   if ((HOLD)); then
@@ -436,6 +450,10 @@ while (($#)); do
   esac
   shift
 done
+# Testing hook for scratch clones: GO60_TEST_APPLY_FILES=1 makes --dry-run simulate only the
+# drives and really do the archive/layout/keymap/git steps. Never use it in the real repo.
+DRY_FILES=$DRY_RUN
+[[ ${GO60_TEST_APPLY_FILES:-} == 1 ]] && DRY_FILES=0
 [[ $WAIT_TIMEOUT =~ ^[0-9]+$ ]] || die "--timeout must be a number of seconds"
 [[ -z $SIM_ORDER || $SIM_ORDER =~ ^[RLrl]+$ ]] || die "--dry-run ORDER may only contain R, L, r, l"
 
@@ -447,7 +465,7 @@ if [[ -n $SOURCE ]]; then
   [[ -f $SOURCE ]] || die "No such file: $SOURCE"
   SOURCE=$(readlink -f -- "$SOURCE")
 elif ((USE_LATEST)); then
-  SOURCE=$(archived_files | tail -n 1)
+  SOURCE=$(flashed_firmware)
   [[ -n $SOURCE ]] || die "No archived firmware in $FIRMWARE_DIR"
 else
   SOURCE=$(newest_download)
@@ -467,7 +485,7 @@ else
     [[ -n $(git -C "$REPO_DIR" status --porcelain -- config/ 2>/dev/null) ]] && now_sha="${now_sha:-new}-dirty"
     if [[ $built_sha != "$now_sha" || $built_sha == *-dirty && $KEYMAP -nt $BUILT ]]; then
       warn "build/${BUILT##*/} is older than the current keymap."
-      if ask "Rebuild from config/go60.keymap and flash that instead?" y; then
+      if ((!DRY_RUN)) && ask "Rebuild from config/go60.keymap and flash that instead?" y; then
         exec "$REPO_DIR/scripts/go60-build" -- "${ORIG_ARGS[@]}"
       fi
     fi
@@ -495,10 +513,10 @@ else
     fi
   fi
   if [[ -z $SOURCE ]]; then
-    latest=$(archived_files | tail -n 1)
+    latest=$(flashed_firmware)
     [[ -n $latest ]] || die "No .uf2 in $DOWNLOADS_DIR and nothing archived in $FIRMWARE_DIR. Build one with “Save and Build” in the MoErgo Layout Editor, or from the keymap with go60-build."
     warn "No new .uf2 in $DOWNLOADS_DIR."
-    ask "Re-flash the latest archived firmware, ${latest##*/}?" n || exit 0
+    ask "Re-flash the current firmware, ${latest##*/}?" n || exit 0
     SOURCE=$latest
   fi
   [[ $SOURCE == "$DOWNLOADS_DIR"/* ]] && SOURCE_DESC=${SOURCE_DESC:-Layout Editor}
@@ -534,9 +552,29 @@ if [[ -n $LAYOUT_JSON_ARG ]]; then
   [[ -f $LAYOUT_JSON_ARG ]] || die "No such layout file: $LAYOUT_JSON_ARG"
   LAYOUT_JSON=$(readlink -f -- "$LAYOUT_JSON_ARG")
   LAYOUT_TITLE=$(jq -r '.title // empty' -- "$LAYOUT_JSON")
-elif [[ -n $LAYOUT_ID ]] && command -v jq >/dev/null; then
+elif [[ -n $LAYOUT_ID ]] && ((!IN_ARCHIVE)) && command -v jq >/dev/null; then
+  # (An archived firmware never pairs with a Downloads export: that export belongs to a new
+  # build. Its layout comes from git below.)
   LAYOUT_JSON=$(go60_json_downloads | awk -F '\t' -v id="$LAYOUT_ID" 'index($1, id) == 1 { print $2; exit }')
   [[ -n $LAYOUT_JSON ]] && LAYOUT_TITLE=$(jq -r '.title // empty' -- "$LAYOUT_JSON")
+fi
+# Re-flashing an older archived firmware (a rollback): restore the layout that was
+# committed together with it, so layout/current.json matches the keyboard again.
+LAYOUT_RESTORED=''
+if [[ -z $LAYOUT_JSON ]] && ((IN_ARCHIVE)); then
+  rel=${SOURCE#"$(readlink -f -- "$REPO_DIR")"/}
+  c=$(git -C "$REPO_DIR" log --diff-filter=A --format=%h -1 -- "$rel" 2>/dev/null)
+  if [[ -n $c ]] && git -C "$REPO_DIR" show --name-only --format= "$c" | grep -qx 'layout/current.json'; then
+    LAYOUT_TMP=$(mktemp "${TMPDIR:-/tmp}/go60-layout.XXXXXX.json")
+    git -C "$REPO_DIR" show "$c:layout/current.json" > "$LAYOUT_TMP"
+    if cmp -s "$LAYOUT_TMP" "$LAYOUT_FILE"; then
+      rm -f -- "$LAYOUT_TMP"; LAYOUT_TMP=''
+    else
+      LAYOUT_JSON=$LAYOUT_TMP
+      LAYOUT_RESTORED=$c
+      LAYOUT_TITLE=$(jq -r '.title // empty' -- "$LAYOUT_JSON")
+    fi
+  fi
 fi
 
 say
@@ -550,7 +588,11 @@ if [[ -n $PREVIOUS ]]; then
 fi
 [[ -n $IDENTICAL && $IDENTICAL != "$SOURCE" ]] && say "    ${DIM}Identical to archived ${IDENTICAL##*/}$RST"
 if [[ -n $LAYOUT_JSON ]]; then
-  say "    Layout:    $LAYOUT_TITLE (${LAYOUT_JSON_ARG:+from the keymap, }${LAYOUT_JSON##*/})"
+  if [[ -n $LAYOUT_RESTORED ]]; then
+    say "    Layout:    $LAYOUT_TITLE (restored from git, commit $LAYOUT_RESTORED)"
+  else
+    say "    Layout:    $LAYOUT_TITLE (${LAYOUT_JSON_ARG:+from the keymap, }${LAYOUT_JSON##*/})"
+  fi
   say "    Source:    $SOURCE_DESC"
 elif ((!IN_ARCHIVE)); then
   warn "No layout JSON export for this layout in $DOWNLOADS_DIR, so layout/current.json won't be updated."
@@ -561,76 +603,30 @@ if [[ -n $VERSION && -n $PREV_VERSION && $VERSION != "$PREV_VERSION" ]]; then
   VERSION_CHANGED=1
   warn "Firmware version changes from $PREV_VERSION to $VERSION — a configuration reset is recommended afterwards."
 fi
+# What this flash changes on the keyboard, key by key.
+if [[ -n $LAYOUT_JSON && -f $LAYOUT_FILE ]]; then
+  changes=$("$REPO_DIR/skills/go60/scripts/go60-keymap" diff "$LAYOUT_FILE" "$LAYOUT_JSON" 2>/dev/null)
+  if [[ -n $changes ]]; then
+    say
+    info "Changes compared to what's on the keyboard now:"
+    sed 's/^/    /' <<<"$changes" | head -n 30
+    (($(wc -l <<<"$changes") > 30)) && say "    … and $(($(wc -l <<<"$changes") - 30)) more"
+    last_src=$(git -C "$REPO_DIR" log -1 --grep='^Flash ' --format=%b 2>/dev/null | sed -n 's/^Source: //p' | head -n 1)
+    if [[ $last_src == keymap* && $SOURCE_DESC == "Layout Editor" ]]; then
+      warn "The keyboard was last flashed from the text keymap. Unless you imported that layout into the"
+      warn "Layout Editor (go60-keymap to-json), this editor layout undoes those keymap changes (see the list)."
+    fi
+  else
+    say "    ${DIM}No key changes compared to what's on the keyboard.$RST"
+  fi
+fi
 say
 ask "Flash this firmware?" y || exit 0
 
-# --- archive it in firmware/
-if ((IN_ARCHIVE)); then
-  FIRMWARE=$SOURCE
-elif [[ -n $IDENTICAL ]]; then
-  FIRMWARE=$IDENTICAL
-  if ((DRY_RUN)); then
-    info "Would remove ${SOURCE##*/} (already archived as ${IDENTICAL##*/})"
-  else
-    rm -f -- "$SOURCE"
-    info "Already archived as ${IDENTICAL##*/}; removed the duplicate download."
-  fi
-else
-  if ((DRY_RUN)); then
-    SIM_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/go60-flash-sim.XXXXXX")
-    ARCHIVE_DIR="$SIM_ROOT/firmware"
-  else
-    ARCHIVE_DIR=$FIRMWARE_DIR
-  fi
-  mkdir -p "$ARCHIVE_DIR" || die "Can't create $ARCHIVE_DIR"
-  stem=$(archive_name_for "$SOURCE")
-  FIRMWARE="$ARCHIVE_DIR/$stem.uf2"
-  n=2
-  while [[ -e $FIRMWARE ]]; do FIRMWARE="$ARCHIVE_DIR/$stem-$((n++)).uf2"; done
-  if ((DRY_RUN)); then
-    cp -- "$SOURCE" "$FIRMWARE" || die "Copy to $FIRMWARE failed"
-    info "Would archive as firmware/${FIRMWARE##*/}"
-  else
-    mv -- "$SOURCE" "$FIRMWARE" || die "Moving ${SOURCE##*/} to $FIRMWARE_DIR failed"
-    info "Archived as firmware/${FIRMWARE##*/}"
-  fi
-fi
-
-# --- save the layout JSON export as layout/current.json
-LAYOUT_SAVED=0
-KEYMAP_SYNCED=0
-# The text keymap (config/go60.keymap) follows editor flashes, unless it has edits of its
-# own that were never flashed. Check that before current.json changes.
-KEYMAP_IN_SYNC=0
-if [[ -n $LAYOUT_JSON && -z $LAYOUT_JSON_ARG && -f $KEYMAP ]] &&
-  "$REPO_DIR/skills/go60/scripts/go60-keymap" check 2>/dev/null | grep -q '^No changes'; then
-  KEYMAP_IN_SYNC=1
-fi
-if [[ -n $LAYOUT_JSON ]]; then
-  if ((DRY_RUN)); then
-    info "Would save ${LAYOUT_JSON##*/} as layout/${LAYOUT_FILE##*/} and remove the original"
-  elif mkdir -p "$(dirname -- "$LAYOUT_FILE")" &&
-    jq . -- "$LAYOUT_JSON" > "$LAYOUT_FILE.tmp" && mv -- "$LAYOUT_FILE.tmp" "$LAYOUT_FILE"; then
-    rm -f -- "$LAYOUT_JSON"
-    LAYOUT_SAVED=1
-    info "Saved layout “$LAYOUT_TITLE” as layout/${LAYOUT_FILE##*/}"
-    if [[ -z $LAYOUT_JSON_ARG && -f $KEYMAP ]]; then
-      if ((KEYMAP_IN_SYNC)) && "$REPO_DIR/skills/go60/scripts/go60-keymap" init --force >/dev/null; then
-        KEYMAP_SYNCED=1
-        info "Updated config/go60.keymap to match the new layout"
-      else
-        warn "config/go60.keymap has edits that were never flashed, so it was NOT updated to the editor layout."
-        warn "Decide which to keep: 'go60-keymap init --force' takes the flashed layout (drops the keymap edits)."
-      fi
-    fi
-    # Refresh the cheat sheet (go60-keys cheatsheet --open) for the new layout.
-    "$REPO_DIR/skills/go60/scripts/go60-keys" --file "$LAYOUT_FILE" cheatsheet >/dev/null 2>&1 ||
-      warn "Couldn't update the cheat sheet (run: go60-keys cheatsheet)."
-  else
-    rm -f -- "$LAYOUT_FILE.tmp"
-    err "Couldn't save ${LAYOUT_JSON##*/} to $LAYOUT_FILE; left it in Downloads."
-  fi
-fi
+# Flash straight from the source file. It's archived, and the layout saved, only after
+# at least one half took it, so layout/current.json never claims a layout the keyboard
+# doesn't have (and a failed attempt leaves everything in place for a retry).
+FIRMWARE=$SOURCE
 
 # --- one or two cables
 if [[ -z $MODE ]]; then
@@ -694,7 +690,12 @@ if ((FAILED == 0)); then
   ok "All done — the keyboard should reconnect over Bluetooth by itself."
   notify normal "Finished: $(halves "$DONE") flashed ✓"
 else
-  err "$(halves "$FAILED") not flashed. Re-run with --right-only or --left-only (and --latest) to retry."
+  if ((DONE == 0)); then
+    err "Nothing was flashed. Run go60-flash again to retry (the files are still where they were)."
+  else
+    retry="go60-flash --$( [[ ${STATE[R]} == failed ]] && echo right || echo left )-only"
+    err "$(halves "$FAILED") not flashed. Retry with: $retry \"${FIRMWARE/#$HOME/\~}\""
+  fi
   notify critical "Finished with errors: $(halves "$FAILED") not flashed"
 fi
 
@@ -708,13 +709,90 @@ if ((VERSION_CHANGED && DONE > 0)); then
   notify critical "Firmware version changed ($PREV_VERSION → $VERSION): do the configuration reset (see terminal)."
 fi
 
+# --- archive the firmware and save the layout (only if something was flashed)
+LAYOUT_SAVED=0
+KEYMAP_SYNCED=0
+if ((DONE > 0)); then
+  # archive it in firmware/
+  if ((IN_ARCHIVE)); then
+    FIRMWARE=$SOURCE
+  elif [[ -n $IDENTICAL ]]; then
+    FIRMWARE=$IDENTICAL
+    if ((DRY_FILES)); then
+      info "Would remove ${SOURCE##*/} (already archived as ${IDENTICAL##*/})"
+    else
+      rm -f -- "$SOURCE"
+      info "Already archived as ${IDENTICAL##*/}; removed the duplicate download."
+    fi
+  else
+    if ((DRY_FILES)); then
+      [[ -n $SIM_ROOT ]] || SIM_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/go60-flash-sim.XXXXXX")
+      ARCHIVE_DIR="$SIM_ROOT/firmware"
+    else
+      ARCHIVE_DIR=$FIRMWARE_DIR
+    fi
+    mkdir -p "$ARCHIVE_DIR" || die "Can't create $ARCHIVE_DIR"
+    stem=$(archive_name_for "$SOURCE")
+    FIRMWARE="$ARCHIVE_DIR/$stem.uf2"
+    n=2
+    while [[ -e $FIRMWARE ]]; do FIRMWARE="$ARCHIVE_DIR/$stem-$((n++)).uf2"; done
+    if ((DRY_FILES)); then
+      cp -- "$SOURCE" "$FIRMWARE" || die "Copy to $FIRMWARE failed"
+      info "Would archive as firmware/${FIRMWARE##*/}"
+    else
+      mv -- "$SOURCE" "$FIRMWARE" || die "Moving ${SOURCE##*/} to $FIRMWARE_DIR failed"
+      info "Archived as firmware/${FIRMWARE##*/}"
+    fi
+  fi
+
+  # save the layout as layout/current.json
+  # The text keymap (config/go60.keymap) follows editor flashes, unless it has edits of its
+  # own that were never flashed. Check that before current.json changes.
+  KEYMAP_IN_SYNC=0
+  if [[ -n $LAYOUT_JSON && -z $LAYOUT_JSON_ARG && -f $KEYMAP ]]; then
+    chk=$("$REPO_DIR/skills/go60/scripts/go60-keymap" check 2>/dev/null)
+    # In sync = no key changes and no hand edits outside what the converter tracks.
+    grep -q '^No changes' <<<"$chk" && ! grep -q '^! edits outside' <<<"$chk" && KEYMAP_IN_SYNC=1
+  fi
+  if [[ -n $LAYOUT_JSON ]]; then
+    if ((DRY_FILES)); then
+      info "Would save ${LAYOUT_JSON##*/} as layout/${LAYOUT_FILE##*/} and remove the original"
+    elif mkdir -p "$(dirname -- "$LAYOUT_FILE")" &&
+      jq . -- "$LAYOUT_JSON" > "$LAYOUT_FILE.tmp" && mv -- "$LAYOUT_FILE.tmp" "$LAYOUT_FILE"; then
+      rm -f -- "$LAYOUT_JSON"
+      LAYOUT_SAVED=1
+      info "Saved layout “$LAYOUT_TITLE” as layout/${LAYOUT_FILE##*/}"
+      if [[ -z $LAYOUT_JSON_ARG && -f $KEYMAP ]]; then
+        if ((KEYMAP_IN_SYNC)) && "$REPO_DIR/skills/go60/scripts/go60-keymap" init --force >/dev/null; then
+          KEYMAP_SYNCED=1
+          info "Updated config/go60.keymap to match the new layout"
+        else
+          warn "config/go60.keymap has edits that were never flashed, so it was NOT updated to the editor layout."
+          warn "Run 'go60-keymap merge' to keep your keymap edits on top of this layout,"
+          warn "or 'go60-keymap init --force' to take the flashed layout and drop them."
+        fi
+      fi
+      # Refresh the cheat sheet (go60-keys cheatsheet --open) for the new layout.
+      "$REPO_DIR/skills/go60/scripts/go60-keys" --file "$LAYOUT_FILE" cheatsheet >/dev/null 2>&1 ||
+        warn "Couldn't update the cheat sheet (run: go60-keys cheatsheet)."
+    else
+      rm -f -- "$LAYOUT_FILE.tmp"
+      err "Couldn't save ${LAYOUT_JSON##*/} to $LAYOUT_FILE; left it in Downloads."
+    fi
+  fi
+
+else
+  say
+  info "Nothing was flashed, so ${SOURCE##*/}${LAYOUT_JSON:+ and ${LAYOUT_JSON##*/}} stay where they are for a retry."
+fi
+
 # --- offer to delete other Go60 files still in Downloads
 mapfile -t LEFTOVERS < <(leftover_downloads | grep -vxF -e "$SOURCE" -e "${LAYOUT_JSON:-$SOURCE}")
 if ((${#LEFTOVERS[@]})); then
   say
   info "Other Go60 files still in Downloads (older builds or exports):"
   for f in "${LEFTOVERS[@]}"; do say "    ${f##*/}"; done
-  if ((DRY_RUN)); then
+  if ((DRY_FILES)); then
     info "Would offer to delete them."
   elif ask "Delete them?" n; then
     rm -f -- "${LEFTOVERS[@]}" && ok "Deleted."
@@ -725,7 +803,9 @@ fi
 COMMIT_PATHS=("$FIRMWARE")
 ((LAYOUT_SAVED)) && COMMIT_PATHS+=("$LAYOUT_FILE")
 ((KEYMAP_SYNCED)) && COMMIT_PATHS+=("$KEYMAP")
-if ((DRY_RUN)); then
+if ((DONE == 0)); then
+  :
+elif ((DRY_FILES)); then
   say
   info "Would offer to commit firmware/${FIRMWARE##*/}${LAYOUT_JSON:+ and layout/${LAYOUT_FILE##*/}} to git."
 elif git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1 &&

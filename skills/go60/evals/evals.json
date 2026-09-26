@@ -42,6 +42,12 @@
       "prompt": "swap å and ö on my go60, the å key is too far away",
       "expected_output": "Reads references/keymap-editing.md, edits config/go60.keymap swapping &kp LBKT (RH C3R5) and &kp SEMI (RH C5R3) on the Base layer, runs go60-keymap check, shows summary lines like 'Base RH C5R3: ö → å' and 'Base RH C3R5: å → ö', and tells the user to run go60-build. Mentions SymbolNav also has å if relevant.",
       "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "go60-flash said my keymap was NOT updated to the editor layout, what do I do?",
+      "expected_output": "Explains that the keymap had unflashed edits, suggests go60-keymap merge (keeps keymap edits on top of the flashed editor layout) and shows what it would keep (go60-keymap merge --dry-run), alternative go60-keymap init --force to drop them; then go60-build to flash.",
+      "files": []
     }
   ]
 }

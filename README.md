@@ -40,7 +40,8 @@ go60-keymap format       # re-align it and refresh the Finnish legend comments
 go60-build               # commit, build locally (Podman), then flash with go60-flash
                          # (or press Super+Shift+Ctrl+K: it offers to build and flash keymap edits)
 go60-build --no-flash    # build only; the firmware is left in build/
-go60-keymap to-json -o ~/Downloads/go60.json   # move back to the web editor (import the JSON there)
+go60-keymap to-json -o ~/Downloads/go60.json   # move back to the web editor (import the JSON there first!)
+go60-keymap merge        # after an editor flash: keep your unflashed keymap edits on top of it
 ```
 
 - Builds use the ZMK version of the currently flashed firmware (e.g. v25.11), so the firmware version only
@@ -49,7 +50,10 @@ go60-keymap to-json -o ~/Downloads/go60.json   # move back to the web editor (im
   `omarchy pkg add podman`.
 - After a flash from the web editor, `go60-flash` updates `config/go60.keymap` to match. It skips this if
   the keymap has edits that were never flashed, and warns you.
-- `layout/current.json` always describes what's on the keyboard, whichever way it was made.
+- `layout/current.json` always describes what's on the keyboard, whichever way it was made. It's written only
+  after a successful flash, and a rollback (`go60-flash firmware/<old>.uf2`) restores the matching layout from git.
+- Before flashing, `go60-flash` lists the keys that change on the keyboard. It warns when an editor layout would
+  undo changes flashed from the keymap, which happens if you didn't import the keymap into the editor first.
 
 The full guide (file layout, common edits, adding layers, problems) is in
 `skills/go60/references/keymap-editing.md`. Or just ask Claude: "swap å and ö".
@@ -122,7 +126,7 @@ go60-flash [options] [file.uf2]
   -1 / -2              one cable / two cables (asked if omitted)
   --right-only         flash only one half (e.g. to retry a failed half)
   --left-only
-  -l, --latest         re-flash the latest archived firmware
+  -l, --latest         re-flash the firmware that is on the keyboard (the last one flashed)
   -t, --timeout SECS   wait time per bootloader drive (default 300)
   -n, --dry-run[=ORDER]  simulate the drives, e.g. RL, LR, RRL, R, rRL
                        (lowercase = that half never reboots). Changes nothing.
