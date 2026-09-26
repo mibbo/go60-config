@@ -21,7 +21,8 @@ whether the tools are installed.
 | Visual cheat sheet | `go60-keys cheatsheet --open` (updated automatically after each flash) |
 | See the state of the setup | `go60-status` |
 | Flash a new layout (web) | Layout Editor → Save and Build and download JSON → `go60-flash` (or Super+Shift+Ctrl+K) |
-| Change keys as text | edit `config/go60.keymap` → `go60-keymap check` → `go60-build` (builds with Podman, then runs `go60-flash`); see `keymap-editing.md` |
+| Change keys as text | edit `config/go60.keymap` → `go60-keymap check` → `go60-build` or **Super+Shift+Ctrl+K** (builds with Podman, then flashes); see `keymap-editing.md` |
+| What the hotkey / plain `go60-flash` picks | a new editor download in `~/Downloads`, a firmware waiting in `build/`, or unbuilt keymap edits (offers to build). If an editor download and a local build are both waiting, it asks which one. |
 | Move a keymap back to the web editor | `go60-keymap to-json -o ~/Downloads/go60.json`, then import it in the editor |
 | Retry one half, re-flash, roll back | `go60-flash --right-only` / `--left-only` / `--latest` / `go60-flash firmware/<file>.uf2` |
 | Layout history | `git log -p layout/current.json`; firmware history in `firmware/` |

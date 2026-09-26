@@ -26,6 +26,9 @@ go60-keymap format    # optional: re-align columns and refresh the legend commen
 go60-build            # offers to commit, builds (Podman), then runs go60-flash
 ```
 
+- **Super+Shift+Ctrl+K** (the flashing hotkey) works for this path too. It finds unbuilt keymap edits and
+  offers to build and flash them. It also flashes a firmware waiting in `build/`, and offers to rebuild it
+  first if the keymap changed after that build.
 - `go60-build -- --two-cables` passes options on to `go60-flash`.
 - `go60-build --no-flash` only builds, leaving the firmware in `build/`.
 - The first build creates the build container, which downloads the ZMK toolchain and takes a while.

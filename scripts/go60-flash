@@ -35,6 +35,7 @@ SOURCE=''
 LAYOUT_JSON_ARG=''  # --layout-json: layout to save instead of a Downloads export
 SOURCE_DESC=''      # --source: where the firmware came from (recorded in the commit)
 KEYMAP="$REPO_DIR/config/go60.keymap"
+BUILD_DIR="${GO60_BUILD_DIR:-$REPO_DIR/build}"
 
 # ---------------------------------------------------------------- helpers ---
 
@@ -76,7 +77,9 @@ Usage: go60-flash [options] [file.uf2]
 Flash a MoErgo Go60 firmware (.uf2) onto both halves.
 
 Without a file argument, the newest *.uf2 in $DOWNLOADS_DIR is used and moved
-into $FIRMWARE_DIR. If there is none, it offers to re-flash the latest archived one.
+into $FIRMWARE_DIR. A firmware built from the keymap (build/, by go60-build) is
+picked up too; if the keymap has changes that were never built, it offers to
+build and flash them. With nothing new, it offers to re-flash the latest archived one.
 A layout JSON export with the same layout ID in Downloads is saved as
 $LAYOUT_FILE and removed from Downloads.
 
@@ -411,6 +414,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'say; warn "Interrupted."; [[ -n ${FIRMWARE:-} ]] && summary; exit 130' INT TERM
 
+ORIG_ARGS=("$@")
 while (($#)); do
   case $1 in
     -1|--one-cable) MODE=1 ;;
@@ -447,9 +451,52 @@ elif ((USE_LATEST)); then
   [[ -n $SOURCE ]] || die "No archived firmware in $FIRMWARE_DIR"
 else
   SOURCE=$(newest_download)
+  # The text keymap path: a firmware left in build/ by `go60-build --no-flash`, or keymap
+  # edits that were never built. go60-flash moves built firmware out of build/ when it
+  # flashes it, so anything still there is waiting to be flashed.
+  BUILT=$(ls -1t "$BUILD_DIR"/*.uf2 2>/dev/null | head -n 1)
+  KEYMAP_PENDING=0
+  if ((!DRY_RUN)) && [[ -f $KEYMAP ]] &&
+    ! "$REPO_DIR/skills/go60/scripts/go60-keymap" check 2>/dev/null | grep -q '^No changes'; then
+    KEYMAP_PENDING=1
+  fi
+  if [[ -n $BUILT ]]; then
+    # Is the build older than the keymap? Its name ends in "keymap <commit>[-dirty]".
+    built_sha=${BUILT##*_keymap }; built_sha=${built_sha%.uf2}
+    now_sha=$(git -C "$REPO_DIR" log -1 --format=%h -- config/ 2>/dev/null)
+    [[ -n $(git -C "$REPO_DIR" status --porcelain -- config/ 2>/dev/null) ]] && now_sha="${now_sha:-new}-dirty"
+    if [[ $built_sha != "$now_sha" || $built_sha == *-dirty && $KEYMAP -nt $BUILT ]]; then
+      warn "build/${BUILT##*/} is older than the current keymap."
+      if ask "Rebuild from config/go60.keymap and flash that instead?" y; then
+        exec "$REPO_DIR/scripts/go60-build" -- "${ORIG_ARGS[@]}"
+      fi
+    fi
+  fi
+  if [[ -n $SOURCE && -n $BUILT ]]; then
+    say "Two firmware files are waiting:"
+    say "  1) ${SOURCE##*/}  (Layout Editor download, $(date -r "$SOURCE" '+%F %H:%M'))"
+    say "  2) ${BUILT##*/}  (built from the keymap, $(date -r "$BUILT" '+%F %H:%M'))"
+    read -rp "Which one do you want to flash? [1/2] " pick || pick=''
+    case $pick in
+      1) BUILT='' ;;
+      2) SOURCE='' ;;
+      *) die "Please answer 1 or 2." ;;
+    esac
+  fi
+  if [[ -z $SOURCE && -n $BUILT ]]; then
+    SOURCE=$BUILT
+    [[ -z $LAYOUT_JSON_ARG && -f $BUILD_DIR/layout.json ]] && LAYOUT_JSON_ARG=$BUILD_DIR/layout.json
+    SOURCE_DESC=${SOURCE_DESC:-"keymap ${built_sha:-build}"}
+  elif [[ -z $SOURCE ]] && ((KEYMAP_PENDING)); then
+    info "config/go60.keymap has changes that haven't been flashed:"
+    "$REPO_DIR/skills/go60/scripts/go60-keymap" check 2>/dev/null | sed -n '/^Changes compared/,$p' | tail -n +2
+    if ask "Build it and flash?" y; then
+      exec "$REPO_DIR/scripts/go60-build" -- "${ORIG_ARGS[@]}"
+    fi
+  fi
   if [[ -z $SOURCE ]]; then
     latest=$(archived_files | tail -n 1)
-    [[ -n $latest ]] || die "No .uf2 in $DOWNLOADS_DIR and nothing archived in $FIRMWARE_DIR. Build one with “Save and Build” in the MoErgo Layout Editor."
+    [[ -n $latest ]] || die "No .uf2 in $DOWNLOADS_DIR and nothing archived in $FIRMWARE_DIR. Build one with “Save and Build” in the MoErgo Layout Editor, or from the keymap with go60-build."
     warn "No new .uf2 in $DOWNLOADS_DIR."
     ask "Re-flash the latest archived firmware, ${latest##*/}?" n || exit 0
     SOURCE=$latest

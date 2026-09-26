@@ -61,6 +61,18 @@ while (($#)); do
   shift
 done
 
+# Launched from the hotkey (go60-flash --hold): keep the terminal open if we stop early.
+HOLD=0
+for a in "${FLASH_ARGS[@]}"; do [[ $a == --hold ]] && HOLD=1; done
+WORK=''
+cleanup() {
+  local rc=$?
+  [[ -n $WORK ]] && rm -rf "$WORK"
+  ((HOLD)) && { echo; read -rp 'Press Enter to close. ' _ || true; }
+  return $rc
+}
+trap cleanup EXIT
+
 command -v podman >/dev/null || die "Podman is not installed. Install it with: omarchy pkg add podman"
 [[ -f $KEYMAP ]] || die "No $KEYMAP. Create it from the flashed layout with: go60-keymap init"
 
@@ -120,7 +132,6 @@ if ((REBUILD_IMAGE)) || ! podman image exists "$IMAGE"; then
 fi
 
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/go60-build.XXXXXX")
-trap 'rm -rf "$WORK"' EXIT
 cp -r "$REPO_DIR/config" "$WORK/config"
 info "Building firmware (ZMK $ZMK, keymap ${SHA:-uncommitted})"
 notify-send -a 'Go60 build' 'Go60 build' "Building firmware (ZMK $ZMK)…" 2>/dev/null
@@ -142,6 +153,7 @@ notify-send -a 'Go60 build' 'Go60 build' "Firmware built ✓" 2>/dev/null
 # --- 4. flash
 if ((FLASH)); then
   echo
+  rm -rf "$WORK"; WORK=''; HOLD=0   # go60-flash takes over (and holds the terminal itself)
   exec "$REPO_DIR/scripts/go60-flash" --layout-json "$REPO_DIR/build/layout.json" \
     --source "keymap ${SHA:-local} (ZMK $ZMK)" "${FLASH_ARGS[@]}" "$OUT"
 fi

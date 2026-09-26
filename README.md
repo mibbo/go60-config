@@ -38,6 +38,7 @@ go60-keys cheatsheet --open      # interactive cheat sheet (search, per-layer ta
 go60-keymap check        # validate config/go60.keymap and list what changed since the last flash
 go60-keymap format       # re-align it and refresh the Finnish legend comments
 go60-build               # commit, build locally (Podman), then flash with go60-flash
+                         # (or press Super+Shift+Ctrl+K: it offers to build and flash keymap edits)
 go60-build --no-flash    # build only; the firmware is left in build/
 go60-keymap to-json -o ~/Downloads/go60.json   # move back to the web editor (import the JSON there)
 ```
