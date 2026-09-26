@@ -32,7 +32,13 @@ fi
 
 echo
 echo "Firmware"
-last=$(ls -1 "$REPO_DIR"/firmware/*.uf2 2>/dev/null | sort | tail -n 1)
+# Newest by commit (file names sort wrongly when two flashes share a date),
+# falling back to the newest file on disk if it isn't committed yet.
+last=$(git_ log -1 --diff-filter=A --name-only --format= -- 'firmware/*.uf2' 2>/dev/null | head -n 1)
+[[ -n $last ]] && last="$REPO_DIR/$last"
+newest=$(ls -1t "$REPO_DIR"/firmware/*.uf2 2>/dev/null | head -n 1)
+[[ -n $newest && ( -z $last || $newest -nt $last ) ]] &&
+  [[ -z $(git_ log -1 --format=%H -- "firmware/${newest##*/}" 2>/dev/null) ]] && last=$newest
 if [[ -n $last ]]; then
   n=$(ls -1 "$REPO_DIR"/firmware/*.uf2 | wc -l)
   c=$(git_ log -1 --format=%ct -- "firmware/${last##*/}" 2>/dev/null)
