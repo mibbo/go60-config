@@ -1,0 +1,584 @@
+#!/usr/bin/env bash
+# go60-flash — flash a MoErgo Go60 .uf2 onto both halves of the keyboard.
+#
+# Finds the newest .uf2 in ~/Downloads (or takes a path), archives it in the
+# repo's firmware/ directory, then waits for the GO60RHBOOT / GO60LHBOOT
+# bootloader drives and copies the firmware onto whichever half shows up.
+# Run with --help for options.
+
+set -uo pipefail
+
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+REPO_DIR=$(dirname "$(dirname "$SELF")")
+FIRMWARE_DIR="${GO60_FIRMWARE_DIR:-$REPO_DIR/firmware}"
+DOWNLOADS_DIR="${GO60_DOWNLOADS:-$(xdg-user-dir DOWNLOAD 2>/dev/null || echo "$HOME/Downloads")}"
+
+HALVES=(R L)
+declare -A LABEL=([R]=GO60RHBOOT [L]=GO60LHBOOT)
+declare -A NAME=([R]=RIGHT [L]=LEFT)
+declare -A COMBO=([R]='Magic + \' [L]='Magic + Tab')
+declare -A FALLBACK=([R]='power off, hold Alt+K, power on' [L]='power off, hold Ctrl+D, power on')
+declare -A STATE=([R]=pending [L]=pending) # pending | done | failed | skipped
+declare -A NOTE=([R]='' [L]='')
+
+MODE=''            # 1 or 2 cables
+WAIT_TIMEOUT=300   # seconds to wait for a bootloader drive
+GONE_TIMEOUT=60    # seconds to wait for the drive to disappear after copying
+NOTIFY=1
+HOLD=0
+DRY_RUN=0
+SIM_ORDER=''
+USE_LATEST=0
+SOURCE=''
+
+# ---------------------------------------------------------------- helpers ---
+
+if [[ -t 1 ]]; then
+  B=$'\e[1m' DIM=$'\e[2m' RED=$'\e[31m' GRN=$'\e[32m' YLW=$'\e[33m' CYN=$'\e[36m' RST=$'\e[0m'
+else
+  B='' DIM='' RED='' GRN='' YLW='' CYN='' RST=''
+fi
+
+say()  { printf '%s\n' "$*"; }
+info() { printf '%s==>%s %s\n' "$CYN$B" "$RST" "$*"; }
+ok()   { printf '%s ✓ %s%s\n' "$GRN" "$*" "$RST"; }
+warn() { printf '%s !  %s%s\n' "$YLW" "$*" "$RST" >&2; }
+err()  { printf '%s ✗ %s%s\n' "$RED" "$*" "$RST" >&2; }
+die()  { err "$*"; notify critical "$*"; exit 1; }
+
+# notify [low|normal|critical] message
+notify() {
+  local urgency=$1; shift
+  ((NOTIFY)) || return 0
+  local title='Go60 flash'
+  ((DRY_RUN)) && title='Go60 flash (dry run)'
+  notify-send -a 'Go60 flash' -i input-keyboard -u "$urgency" "$title" "$*" 2>/dev/null || true
+}
+
+# ask "question" default(y|n) -> returns 0 for yes
+ask() {
+  local prompt=$1 default=$2 reply hint='[y/N]'
+  [[ $default == y ]] && hint='[Y/n]'
+  read -rp "$prompt $hint " reply || reply=''
+  reply=${reply:-$default}
+  [[ ${reply,,} == y* ]]
+}
+
+usage() {
+  cat <<EOF
+Usage: go60-flash [options] [file.uf2]
+
+Flash a MoErgo Go60 firmware (.uf2) onto both halves.
+
+Without a file argument, the newest *.uf2 in $DOWNLOADS_DIR is used and moved
+into $FIRMWARE_DIR. If there is none, it offers to re-flash the latest archived one.
+
+Options:
+  -1, --one-cable       One USB cable: right half first, then move it to the left
+  -2, --two-cables      Two USB cables: both halves connected at the same time
+      --right-only      Only flash the right half
+      --left-only       Only flash the left half
+  -l, --latest          Re-flash the latest archived firmware
+  -t, --timeout SECS    How long to wait for each bootloader drive (default $WAIT_TIMEOUT)
+  -n, --dry-run[=ORDER] Simulate the bootloader drives instead of using the keyboard.
+                        ORDER lists the drives in the order they appear:
+                        R/L = right/left half, lowercase r/l = that half gets the
+                        file but never reboots (failed flash). Default: RL.
+                        Examples: LR, RRL (right shown twice), R (left never shows).
+                        Nothing in Downloads, firmware/ or git is changed.
+      --no-notify       Don't send desktop notifications
+      --hold            Wait for Enter before exiting (for launcher terminals)
+  -h, --help            Show this help
+EOF
+}
+
+# --------------------------------------------------------- firmware files ---
+
+is_uf2() { [[ $(head -c 4 -- "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n') == 5546320a ]]; }
+
+# Firmware version from a file name (MoErgo downloads and archive names both
+# contain _v<version>_), e.g. 25.11. Empty if unknown.
+version_of() {
+  local base
+  base=$(basename -- "$1")
+  [[ $base =~ _v([0-9]+(\.[0-9]+)+)(_|\.uf2$) ]] && printf '%s' "${BASH_REMATCH[1]}"
+}
+
+slugify() {
+  local s
+  s=$(printf '%s' "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null || printf '%s' "$1")
+  s=$(printf '%s' "${s,,}" | tr -cs 'a-z0-9' '-')
+  s=${s#-}; s=${s%-}
+  printf '%s' "${s:0:40}" | sed 's/-$//'
+}
+
+# Archive name: <date>_v<version>_<layout-name>_<layout-id prefix>.uf2
+archive_name_for() {
+  local base=${1##*/} date id='' ver name
+  base=${base%.[uU][fF]2}
+  date=$(date +%F)
+  ver=$(version_of "$1")
+  if [[ $base =~ ^([0-9a-fA-F]{8})-[0-9a-fA-F-]{27}_(.*)$ ]]; then
+    id=${BASH_REMATCH[1],,}
+    base=${BASH_REMATCH[2]}
+  fi
+  [[ -n $ver ]] && base=${base/#v${ver}_/}
+  name=$(slugify "$base")
+  [[ -n $name ]] || name=layout
+  printf '%s%s_%s%s' "$date" "${ver:+_v$ver}" "$name" "${id:+_$id}"
+}
+
+# Archived firmware files, oldest first (by date prefix, then mtime).
+archived_files() {
+  local f
+  shopt -s nullglob
+  for f in "$FIRMWARE_DIR"/*.uf2; do
+    printf '%s\t%s\t%s\n' "${f##*/}" "$(stat -c %Y -- "$f")" "$f"
+  done | sort -t $'\t' -k1,1.10 -k2,2n | cut -f3-
+  shopt -u nullglob
+}
+
+newest_download() {
+  find "$DOWNLOADS_DIR" -maxdepth 1 -type f -iname '*.uf2' -printf '%T@\t%p\n' 2>/dev/null |
+    sort -rn | head -n 1 | cut -f2-
+}
+
+# ------------------------------------------------------------------ drives ---
+
+SIM_ROOT=''
+SIM_PID=''
+
+drive_path() { # for real drives: /dev/... ; simulated: a directory
+  if ((DRY_RUN)); then
+    printf '%s' "$SIM_ROOT/drives/${LABEL[$1]}"
+  else
+    printf '%s' "/dev/disk/by-label/${LABEL[$1]}"
+  fi
+}
+
+drive_present() {
+  if ((DRY_RUN)); then [[ -d $(drive_path "$1") ]]; else [[ -e $(drive_path "$1") ]]; fi
+}
+
+# Prints the mount point of half $1's drive, mounting it if needed.
+mount_drive() {
+  local half=$1 dev mnt i out
+  if ((DRY_RUN)); then
+    drive_path "$half"
+    return 0
+  fi
+  dev=$(readlink -f -- "$(drive_path "$half")") || return 1
+  # Give a file manager a moment to auto-mount it first.
+  for ((i = 0; i < 6; i++)); do
+    mnt=$(findmnt -rno TARGET -S "$dev" 2>/dev/null | head -n 1)
+    [[ -n $mnt ]] && { printf '%s' "$mnt"; return 0; }
+    sleep 0.5
+  done
+  out=$(udisksctl mount -b "$dev" --no-user-interaction 2>&1) || {
+    # It may have been auto-mounted while we were trying.
+    mnt=$(findmnt -rno TARGET -S "$dev" 2>/dev/null | head -n 1)
+    [[ -n $mnt ]] && { printf '%s' "$mnt"; return 0; }
+    err "udisksctl mount failed: $out"
+    return 1
+  }
+  mnt=$(findmnt -rno TARGET -S "$dev" 2>/dev/null | head -n 1)
+  [[ -n $mnt ]] || { err "Mounted $dev but can't find its mount point ($out)"; return 1; }
+  printf '%s' "$mnt"
+}
+
+wait_gone() { # half timeout
+  local end=$((SECONDS + $2))
+  while drive_present "$1"; do
+    ((SECONDS >= end)) && return 1
+    sleep 0.5
+  done
+}
+
+# Background process that makes fake bootloader drives appear in SIM_ORDER.
+simulate_drives() {
+  local order=$1 i c half label dir t
+  sleep 1
+  for ((i = 0; i < ${#order}; i++)); do
+    c=${order:i:1}
+    half=${c^^}
+    label=${LABEL[$half]:-}
+    [[ -n $label ]] || continue
+    dir="$SIM_ROOT/drives/$label"
+    mkdir -p "$dir"
+    # Wait (max 5 s) for the flasher to copy a file onto the drive.
+    for ((t = 0; t < 10; t++)); do
+      compgen -G "$dir/*.uf2" >/dev/null && break
+      sleep 0.5
+    done
+    if [[ $c == [RL] ]]; then
+      sleep 1          # "flashing"
+      rm -rf "$dir"    # the half reboots and the drive disappears
+    else
+      sleep 7          # failed flash: drive stays for a while
+      rm -rf "$dir"
+    fi
+    sleep 2
+  done
+}
+
+# ----------------------------------------------------------------- flashing --
+
+pending_halves() {
+  local h
+  for h in "${HALVES[@]}"; do [[ ${STATE[$h]} == pending ]] && printf '%s ' "$h"; done
+}
+
+halves() { (($1 == 1)) && printf '1 half' || printf '%d halves' "$1"; }
+
+count_state() {
+  local h n=0
+  for h in "${HALVES[@]}"; do [[ ${STATE[$h]} == "$1" ]] && ((n++)); done
+  printf '%d' "$n"
+}
+
+bootloader_hint() {
+  printf '%s half: press %s%s%s  (fallback: %s)' "${NAME[$1]}" "$B" "${COMBO[$1]}" "$RST" "${FALLBACK[$1]}"
+}
+
+instruct() {
+  local pending=($(pending_halves)) h msg first flashed
+  flashed=$(count_state done)
+  say
+  if [[ $MODE == 2 ]]; then
+    if ((${#pending[@]} == 2)); then
+      info "Connect BOTH halves with USB-C cables (directly, no hub). Then, right half first:"
+    else
+      info "Waiting for the ${NAME[${pending[0]}]} half:"
+    fi
+    for h in "${pending[@]}"; do say "    $(bootloader_hint "$h")"; done
+    msg="Press ${COMBO[${pending[0]}]}"
+    ((${#pending[@]} == 2)) && msg="Connect both halves, press ${COMBO[R]} (right), then ${COMBO[L]} (left)"
+  else
+    first=${pending[0]}
+    if ((flashed == 0)) && [[ $(count_state failed) == 0 ]]; then
+      info "Connect the USB-C cable directly to the ${NAME[$first]} half, then:"
+      msg="Connect the cable to the ${NAME[$first]} half and press ${COMBO[$first]}"
+    else
+      info "Move the USB-C cable to the ${NAME[$first]} half, then:"
+      msg="Move the cable to the ${NAME[$first]} half and press ${COMBO[$first]}"
+    fi
+    say "    $(bootloader_hint "$first")"
+    ((${#pending[@]} == 2)) && say "    ${DIM}(The ${NAME[${pending[1]}]} half is fine too if it shows up first.)$RST"
+  fi
+  say "    ${DIM}A slow pulsing red LED by the power switch means bootloader mode.$RST"
+  notify normal "$msg"
+}
+
+# Waits for any pending half's bootloader drive. Sets FOUND. Returns 1 on timeout.
+FOUND=''
+declare -A WARNED=([R]=0 [L]=0)
+wait_for_drive() {
+  local end=$((SECONDS + WAIT_TIMEOUT)) h
+  printf '%s    Waiting for %s (timeout %ss)…%s\n' "$DIM" \
+    "$(for h in $(pending_halves); do printf "%s " "${LABEL[$h]}"; done | sed "s/ $//")" "$WAIT_TIMEOUT" "$RST"
+  while ((SECONDS < end)); do
+    for h in "${HALVES[@]}"; do
+      if drive_present "$h"; then
+        if [[ ${STATE[$h]} == pending ]]; then
+          FOUND=$h
+          return 0
+        elif ((!WARNED[$h])); then
+          WARNED[$h]=1
+          warn "${LABEL[$h]} appeared again, but the ${NAME[$h]} half is already ${STATE[$h]} — ignoring it."
+          warn "Put the other half into bootloader mode. (To re-flash the ${NAME[$h],,} half later: go60-flash --${NAME[$h],,}-only)"
+          notify critical "${NAME[$h]} half is already ${STATE[$h]}. Flash the other half instead."
+        fi
+      else
+        WARNED[$h]=0
+      fi
+    done
+    sleep 0.5
+  done
+  return 1
+}
+
+usb_status() {
+  ((DRY_RUN)) && return 0
+  local line
+  line=$(lsusb 2>/dev/null | grep -iE 'moergo|go60|adafruit|nordic|239a:|1915:' || true)
+  [[ -n $line ]] && say "    ${DIM}USB devices that look like the keyboard:$RST" && say "$line" | sed 's/^/      /'
+  line=$(lsblk -rno NAME,LABEL,RM 2>/dev/null | awk '$3 == 1 || $2 ~ /GO60/' || true)
+  [[ -n $line ]] && say "    ${DIM}Removable block devices (name label):$RST" && say "$line" | sed 's/^/      /'
+}
+
+flash_half() {
+  local half=$1 label=${LABEL[$1]} mnt copy_ok=1
+  say
+  info "Found $label — flashing the ${NAME[$half]} half"
+  notify normal "Found $label, flashing the ${NAME[$half]} half…"
+
+  if ! mnt=$(mount_drive "$half"); then
+    if ! drive_present "$half"; then
+      NOTE[$half]='drive disappeared before it could be mounted'
+    else
+      NOTE[$half]='could not mount the drive'
+    fi
+    return 1
+  fi
+  say "    Mounted at $mnt"
+
+  if ! cp -- "$FIRMWARE" "$mnt/${FIRMWARE##*/}"; then
+    copy_ok=0
+    warn "Copy reported an error (the half may have rebooted mid-copy)."
+  fi
+  timeout 30 sync -f "$mnt" 2>/dev/null || true
+
+  say "    Copied. Waiting for the drive to disappear (that confirms the flash)…"
+  if ! wait_gone "$half" "$GONE_TIMEOUT"; then
+    if ((copy_ok)); then
+      NOTE[$half]="drive still present ${GONE_TIMEOUT}s after the copy — the flash did not complete"
+    else
+      NOTE[$half]='copy failed and the drive is still present'
+    fi
+    return 1
+  fi
+  if ((!copy_ok)); then
+    NOTE[$half]='copy reported an error but the half rebooted — probably fine, check it types correctly'
+    warn "${NAME[$half]} half: ${NOTE[$half]}"
+  fi
+  ok "${NAME[$half]} half flashed."
+  notify normal "${NAME[$half]} half flashed ✓"
+  return 0
+}
+
+summary() {
+  local h color
+  say
+  info "Summary for ${FIRMWARE##*/}"
+  for h in "${HALVES[@]}"; do
+    case ${STATE[$h]} in
+      done) color=$GRN ;; skipped) color=$DIM ;; *) color=$RED ;;
+    esac
+    printf '    %-6s %s%-8s%s %s\n' "${NAME[$h]}" "$color" "${STATE[$h]}" "$RST" "${NOTE[$h]:+— ${NOTE[$h]}}"
+  done
+}
+
+# ------------------------------------------------------------------- main ---
+
+cleanup() {
+  [[ -n $SIM_PID ]] && kill "$SIM_PID" 2>/dev/null
+  [[ -n $SIM_ROOT && -d $SIM_ROOT ]] && rm -rf "$SIM_ROOT"
+  if ((HOLD)); then
+    say
+    read -rp 'Press Enter to close. ' _ || true
+  fi
+}
+trap cleanup EXIT
+trap 'say; warn "Interrupted."; [[ -n ${FIRMWARE:-} ]] && summary; exit 130' INT TERM
+
+while (($#)); do
+  case $1 in
+    -1|--one-cable) MODE=1 ;;
+    -2|--two-cables) MODE=2 ;;
+    --right-only) HALVES=(R); STATE[L]=skipped ;;
+    --left-only) HALVES=(L); STATE[R]=skipped ;;
+    -l|--latest) USE_LATEST=1 ;;
+    -t|--timeout) WAIT_TIMEOUT=${2:?--timeout needs a number}; shift ;;
+    --timeout=*) WAIT_TIMEOUT=${1#*=} ;;
+    -n|--dry-run) DRY_RUN=1; SIM_ORDER=RL ;;
+    --dry-run=*) DRY_RUN=1; SIM_ORDER=${1#*=} ;;
+    --no-notify) NOTIFY=0 ;;
+    --hold) HOLD=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) err "Unknown option: $1"; usage >&2; exit 2 ;;
+    *) SOURCE=$1 ;;
+  esac
+  shift
+done
+[[ $WAIT_TIMEOUT =~ ^[0-9]+$ ]] || die "--timeout must be a number of seconds"
+[[ -z $SIM_ORDER || $SIM_ORDER =~ ^[RLrl]+$ ]] || die "--dry-run ORDER may only contain R, L, r, l"
+
+say "${B}Go60 firmware flasher$RST"
+((DRY_RUN)) && say "${YLW}DRY RUN: simulating drives in order '$SIM_ORDER'. Downloads, firmware/ and git are not changed.$RST"
+
+# --- pick the firmware file
+if [[ -n $SOURCE ]]; then
+  [[ -f $SOURCE ]] || die "No such file: $SOURCE"
+  SOURCE=$(readlink -f -- "$SOURCE")
+elif ((USE_LATEST)); then
+  SOURCE=$(archived_files | tail -n 1)
+  [[ -n $SOURCE ]] || die "No archived firmware in $FIRMWARE_DIR"
+else
+  SOURCE=$(newest_download)
+  if [[ -z $SOURCE ]]; then
+    latest=$(archived_files | tail -n 1)
+    [[ -n $latest ]] || die "No .uf2 in $DOWNLOADS_DIR and nothing archived in $FIRMWARE_DIR. Build one with “Save and Build” in the MoErgo Layout Editor."
+    warn "No new .uf2 in $DOWNLOADS_DIR."
+    ask "Re-flash the latest archived firmware, ${latest##*/}?" n || exit 0
+    SOURCE=$latest
+  fi
+fi
+is_uf2 "$SOURCE" || die "${SOURCE##*/} is not a UF2 firmware file"
+
+VERSION=$(version_of "$SOURCE")
+IN_ARCHIVE=0
+[[ $(dirname -- "$SOURCE") == "$(readlink -f -- "$FIRMWARE_DIR")" ]] && IN_ARCHIVE=1
+
+# The firmware the keyboard is most likely running now: the newest archived
+# file other than this one (compared by content).
+SOURCE_SUM=$(sha256sum -- "$SOURCE" | cut -d' ' -f1)
+PREVIOUS=''
+IDENTICAL=''
+while IFS= read -r f; do
+  [[ -n $f ]] || continue
+  if [[ $(sha256sum -- "$f" | cut -d' ' -f1) == "$SOURCE_SUM" ]]; then
+    IDENTICAL=$f
+  else
+    PREVIOUS=$f
+  fi
+done < <(archived_files)
+PREV_VERSION=${PREVIOUS:+$(version_of "$PREVIOUS")}
+
+say
+info "Firmware to flash"
+say "    File:      ${SOURCE/#$HOME/\~}"
+say "    Version:   ${VERSION:-unknown}"
+say "    Size:      $(du -h -- "$SOURCE" | cut -f1)"
+say "    Modified:  $(date -r "$SOURCE" '+%F %H:%M')"
+if [[ -n $PREVIOUS ]]; then
+  say "    Previous:  ${PREVIOUS##*/} (version ${PREV_VERSION:-unknown})"
+fi
+[[ -n $IDENTICAL && $IDENTICAL != "$SOURCE" ]] && say "    ${DIM}Identical to archived ${IDENTICAL##*/}$RST"
+VERSION_CHANGED=0
+if [[ -n $VERSION && -n $PREV_VERSION && $VERSION != "$PREV_VERSION" ]]; then
+  VERSION_CHANGED=1
+  warn "Firmware version changes from $PREV_VERSION to $VERSION — a configuration reset is recommended afterwards."
+fi
+say
+ask "Flash this firmware?" y || exit 0
+
+# --- archive it in firmware/
+if ((IN_ARCHIVE)); then
+  FIRMWARE=$SOURCE
+elif [[ -n $IDENTICAL ]]; then
+  FIRMWARE=$IDENTICAL
+  if ((DRY_RUN)); then
+    info "Would remove ${SOURCE##*/} (already archived as ${IDENTICAL##*/})"
+  else
+    rm -f -- "$SOURCE"
+    info "Already archived as ${IDENTICAL##*/}; removed the duplicate download."
+  fi
+else
+  if ((DRY_RUN)); then
+    SIM_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/go60-flash-sim.XXXXXX")
+    ARCHIVE_DIR="$SIM_ROOT/firmware"
+  else
+    ARCHIVE_DIR=$FIRMWARE_DIR
+  fi
+  mkdir -p "$ARCHIVE_DIR" || die "Can't create $ARCHIVE_DIR"
+  stem=$(archive_name_for "$SOURCE")
+  FIRMWARE="$ARCHIVE_DIR/$stem.uf2"
+  n=2
+  while [[ -e $FIRMWARE ]]; do FIRMWARE="$ARCHIVE_DIR/$stem-$((n++)).uf2"; done
+  if ((DRY_RUN)); then
+    cp -- "$SOURCE" "$FIRMWARE" || die "Copy to $FIRMWARE failed"
+    info "Would archive as firmware/${FIRMWARE##*/}"
+  else
+    mv -- "$SOURCE" "$FIRMWARE" || die "Moving ${SOURCE##*/} to $FIRMWARE_DIR failed"
+    info "Archived as firmware/${FIRMWARE##*/}"
+  fi
+fi
+
+# --- one or two cables
+if [[ -z $MODE ]]; then
+  if ((${#HALVES[@]} == 1)); then
+    MODE=1
+  else
+    read -rp "How many USB-C cables are you using? [1/2, default 2] " MODE || MODE=''
+    MODE=${MODE:-2}
+    [[ $MODE == [12] ]] || die "Please answer 1 or 2."
+  fi
+fi
+
+if ((DRY_RUN)); then
+  [[ -n $SIM_ROOT ]] || SIM_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/go60-flash-sim.XXXXXX")
+  mkdir -p "$SIM_ROOT/drives"
+  ((WAIT_TIMEOUT == 300)) && WAIT_TIMEOUT=15
+  GONE_TIMEOUT=5
+  simulate_drives "$SIM_ORDER" &
+  SIM_PID=$!
+fi
+
+# --- flash loop
+while [[ -n $(pending_halves) ]]; do
+  instruct
+  if ! wait_for_drive; then
+    for h in $(pending_halves); do
+      warn "Timed out waiting for ${LABEL[$h]} (${NAME[$h]} half)."
+    done
+    usb_status
+    notify critical "Timed out waiting for $(for h in $(pending_halves); do printf '%s ' "${NAME[$h]}"; done)half"
+    read -rp "[w]ait again or [s]kip the remaining half? [W/s] " reply || reply=s
+    if [[ ${reply,,} == s* ]]; then
+      for h in $(pending_halves); do
+        STATE[$h]=failed
+        NOTE[$h]="bootloader drive ${LABEL[$h]} never showed up"
+      done
+    fi
+    continue
+  fi
+
+  h=$FOUND
+  if flash_half "$h"; then
+    STATE[$h]=done
+  else
+    err "${NAME[$h]} half: ${NOTE[$h]}"
+    notify critical "${NAME[$h]} half failed: ${NOTE[$h]}"
+    if ask "Try the ${NAME[$h]} half again? (Put it back into bootloader mode.)" y; then
+      NOTE[$h]=''
+      # Let a still-present drive go away before waiting for it again.
+      wait_gone "$h" 10 || true
+    else
+      STATE[$h]=failed
+    fi
+  fi
+done
+
+summary
+FAILED=$(count_state failed)
+DONE=$(count_state done)
+if ((FAILED == 0)); then
+  ok "All done — the keyboard should reconnect over Bluetooth by itself."
+  notify normal "Finished: $(halves "$DONE") flashed ✓"
+else
+  err "$(halves "$FAILED") not flashed. Re-run with --right-only or --left-only (and --latest) to retry."
+  notify critical "Finished with errors: $(halves "$FAILED") not flashed"
+fi
+
+if ((VERSION_CHANGED && DONE > 0)); then
+  say
+  warn "Firmware version changed ($PREV_VERSION → $VERSION). MoErgo recommends a configuration reset:"
+  say "    1. Left half:  hold Ctrl+E while powering on, keep holding for 5 seconds."
+  say "    2. Right half: hold Alt+I while powering on, keep holding for 5 seconds."
+  say "    3. Power both halves on, press Magic+T twice, and wait 1 minute."
+  say "    Your layout is kept."
+  notify critical "Firmware version changed ($PREV_VERSION → $VERSION): do the configuration reset (see terminal)."
+fi
+
+# --- commit the archived firmware
+if ((DRY_RUN)); then
+  say
+  info "Would offer to commit firmware/${FIRMWARE##*/} to git."
+elif git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1 &&
+  [[ -n $(git -C "$REPO_DIR" status --porcelain -- "$FIRMWARE" 2>/dev/null) ]]; then
+  say
+  if ask "Commit firmware/${FIRMWARE##*/} to git?" y; then
+    halves_msg=$(for h in R L; do printf '%s: %s\n' "${NAME[$h],,}" "${STATE[$h]}"; done)
+    if git -C "$REPO_DIR" add -- "$FIRMWARE" &&
+      git -C "$REPO_DIR" commit -q -m "Flash ${FIRMWARE##*/}" -m "Firmware version: ${VERSION:-unknown}"$'\n'"$halves_msg" -- "$FIRMWARE"; then
+      ok "Committed."
+      if git -C "$REPO_DIR" remote get-url origin >/dev/null 2>&1 && ask "Push to origin?" y; then
+        git -C "$REPO_DIR" push -q && ok "Pushed." || err "Push failed."
+      fi
+    else
+      err "git commit failed."
+    fi
+  fi
+fi
+
+((FAILED == 0))
