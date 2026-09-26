@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# go60-layout — print a Go60 Layout Editor JSON export as readable per-layer grids.
+#
+# Usage: go60-layout [-i] [-l LAYER] [file.json]
+#   -i        prefix every key with its index in the layer array (0–59)
+#   -l LAYER  only print one layer (number or name, e.g. 2 or SymbolNav)
+#   file      defaults to layout/current.json in this repo
+#
+# Grid: rows 0–3 are 6 left-hand keys │ 6 right-hand keys (indexes 0–47).
+# Row 4 (indexes 48–59) is the bottom row / thumb cluster, printed in array order.
+# ZMK key names are US HID codes; see AGENTS.md for what they type with the Finnish layout.
+#   ▽ = transparent (falls through to the layer below)   · = none
+
+set -euo pipefail
+
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+REPO_DIR=$(dirname "$(dirname "$SELF")")
+INDEXES=false
+LAYER=''
+
+while (($#)); do
+  case $1 in
+    -i) INDEXES=true ;;
+    -l) LAYER=${2:?-l needs a layer number or name}; shift ;;
+    -h|--help) sed -n '2,13p' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) FILE=$1 ;;
+  esac
+  shift
+done
+FILE=${FILE:-$REPO_DIR/layout/current.json}
+[[ -f $FILE ]] || { echo "No layout file: $FILE" >&2; exit 1; }
+
+jq -r --argjson idx "$INDEXES" --arg only "$LAYER" '
+  def arg: (.value | tostring)
+    + (if ((.params // []) | length) > 0 then "(" + (.params | map(arg) | join(",")) + ")" else "" end);
+  def pad($n): if $n > length then . + (" " * ($n - length)) else . end;
+  def fmt($w): [to_entries[] | .key as $i | .value | pad($w[$i])] | join("  ") | "  " + . | sub(" +$"; "");
+  def key:
+    if .value == "&kp" then .params | map(arg) | join(" ")
+    elif .value == "&trans" then "▽"
+    elif .value == "&none" then "·"
+    else (.value | ltrimstr("&"))
+      + (if ((.params // []) | length) > 0 then " " + (.params | map(arg) | join(" ")) else "" end)
+    end;
+
+  "\(.title)  (keyboard \(.keyboard), locale \(.locale), uuid \(.uuid))",
+  (.layer_names as $names
+   | .layers | to_entries[]
+   | select($only == "" or ($only == (.key | tostring)) or ($only | ascii_downcase) == ($names[.key] | ascii_downcase))
+   | .key as $l
+   | "",
+     "== Layer \($l): \($names[$l]) ==",
+     (.value | to_entries | map((if $idx then "\(.key):" else "" end) + (.value | key)) as $k
+      | [range(0; 4) as $r | $k[$r*12:$r*12+6] + ["│"] + $k[$r*12+6:$r*12+12]] as $rows
+      | ($k[48:54] + [" "] + $k[54:60]) as $bottom
+      | [range(0; 13) as $c | ($rows + [$bottom]) | map(.[$c] | length) | max] as $w
+      | ($rows[] | fmt($w)),
+        "  row 4, indexes 48–59 (bottom row / thumbs, array order):",
+        ($bottom | fmt($w)))),
+  (if (.macros | length) > 0 then "", "Macros: \(.macros | map(.name) | join(", "))" else empty end),
+  (if (.holdTaps | length) > 0 then "", "Hold-taps: \(.holdTaps | map(.name) | join(", "))" else empty end),
+  (if (.combos | length) > 0 then "", "Combos: \(.combos | map(.name) | join(", "))" else empty end)
+' "$FILE"

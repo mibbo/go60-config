@@ -3,20 +3,26 @@
 Firmware flashing workflow and firmware history for my MoErgo Go60 split keyboard.
 
 - `scripts/go60-flash`: flashes a `.uf2` onto both halves (symlinked to `~/.local/bin/go60-flash`)
-- `firmware/`: every `.uf2` I have flashed, named `<date>_v<firmware version>_<layout name>_<layout id>.uf2`.
-  This is my layout history until the keymap lives here as text.
+- `firmware/`: every `.uf2` I have flashed, named `<date>_v<firmware version>_<layout name>_<layout id>.uf2`
+- `layout/current.json`: the current layout as a Layout Editor JSON export. `git log -p layout/current.json`
+  shows what changed between flashes.
+- `scripts/go60-layout`: prints the layout as per-layer grids (`go60-layout`, `go60-layout -i -l SymbolNav`)
+- `AGENTS.md` (and `CLAUDE.md`, which imports it): context for AI agents, such as how to read the JSON,
+  key positions, and what ZMK key codes type with the Finnish layout
 
 ## Workflow
 
 1. Edit the layout in the MoErgo Layout Editor (my.moergo.com, Go60), then click **Save and Build**.
    This downloads one `<layout_id>_v25.xx_<layout name>.uf2` into `~/Downloads`.
+   Also download the layout as JSON (`<layout_id>_<layout name>.json`) so the layout is saved in git as text.
 2. Run `go60-flash`, or press **Super+Shift+Ctrl+K**.
-   It shows the file and firmware version, moves the file into `firmware/`, and asks whether
-   you are using one cable or two.
+   It shows the file and firmware version, moves the file into `firmware/`, saves the JSON export with the
+   same layout ID as `layout/current.json`, and asks whether you are using one cable or two. Both files are
+   removed from `~/Downloads`. The script also offers to delete older Go60 builds and exports it finds there.
 3. Put the halves into bootloader mode as prompted. The script watches for the `GO60RHBOOT` and
    `GO60LHBOOT` drives, mounts each one, copies the firmware, and waits for the drive to disappear,
    which means the flash is done. Desktop notifications tell you what to do next.
-4. When it finishes, commit (and push) the new firmware file.
+4. When it finishes, commit (and push) the new firmware file and layout.
 
 Use the same `.uf2` on both halves, and connect the cables straight to the laptop, not through a hub.
 MoErgo says bad hubs and cables cause most flashing failures.
@@ -71,6 +77,6 @@ go60-flash [options] [file.uf2]
 
 The plan is to switch to MoErgo's official
 [go60-zmk-config](https://github.com/moergo-keyboards/go60-zmk-config) template and keep the keymap
-here as text, building the firmware locally or with GitHub Actions. This repo only uses `scripts/`
-and `firmware/`, so MoErgo's files (`config/`, `.github/`, build scripts) can be added at the top level
+here as ZMK source, building the firmware locally or with GitHub Actions. This repo only uses `scripts/`,
+`firmware/` and `layout/`, so MoErgo's files (`config/`, `.github/`, build scripts) can be added at the top level
 without conflicts. Only this README would need merging.

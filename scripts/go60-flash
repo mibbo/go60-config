@@ -2,7 +2,8 @@
 # go60-flash — flash a MoErgo Go60 .uf2 onto both halves of the keyboard.
 #
 # Finds the newest .uf2 in ~/Downloads (or takes a path), archives it in the
-# repo's firmware/ directory, then waits for the GO60RHBOOT / GO60LHBOOT
+# repo's firmware/ directory (and the matching layout JSON export, if any, as
+# layout/current.json), then waits for the GO60RHBOOT / GO60LHBOOT
 # bootloader drives and copies the firmware onto whichever half shows up.
 # Run with --help for options.
 
@@ -11,6 +12,7 @@ set -uo pipefail
 SELF=$(readlink -f "${BASH_SOURCE[0]}")
 REPO_DIR=$(dirname "$(dirname "$SELF")")
 FIRMWARE_DIR="${GO60_FIRMWARE_DIR:-$REPO_DIR/firmware}"
+LAYOUT_FILE="${GO60_LAYOUT_FILE:-$REPO_DIR/layout/current.json}"
 DOWNLOADS_DIR="${GO60_DOWNLOADS:-$(xdg-user-dir DOWNLOAD 2>/dev/null || echo "$HOME/Downloads")}"
 
 HALVES=(R L)
@@ -72,6 +74,8 @@ Flash a MoErgo Go60 firmware (.uf2) onto both halves.
 
 Without a file argument, the newest *.uf2 in $DOWNLOADS_DIR is used and moved
 into $FIRMWARE_DIR. If there is none, it offers to re-flash the latest archived one.
+A layout JSON export with the same layout ID in Downloads is saved as
+$LAYOUT_FILE and removed from Downloads.
 
 Options:
   -1, --one-cable       One USB cable: right half first, then move it to the left
@@ -141,6 +145,35 @@ archived_files() {
 newest_download() {
   find "$DOWNLOADS_DIR" -maxdepth 1 -type f -iname '*.uf2' -printf '%T@\t%p\n' 2>/dev/null |
     sort -rn | head -n 1 | cut -f2-
+}
+
+# Layout ID (UUID, or its first 8 hex digits) from a download or archive name.
+layout_id_of() {
+  local base=${1##*/}
+  if [[ $base =~ ^([0-9a-fA-F]{8}-[0-9a-fA-F-]{27})_ ]]; then
+    printf '%s' "${BASH_REMATCH[1],,}"
+  elif [[ $base =~ _([0-9a-f]{8})(-[0-9]+)?\.uf2$ ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+  fi
+}
+
+# Go60 layout JSON exports in Downloads, newest first: "<uuid>\t<path>".
+go60_json_downloads() {
+  local f uuid
+  while IFS= read -r f; do
+    uuid=$(jq -er 'select(.keyboard == "go60") | .uuid' -- "$f" 2>/dev/null) || continue
+    printf '%s\t%s\n' "${uuid,,}" "$f"
+  done < <(find "$DOWNLOADS_DIR" -maxdepth 1 -type f -iname '*.json' -printf '%T@\t%p\n' 2>/dev/null |
+    sort -rn | cut -f2-)
+}
+
+# Other Go60 files left in Downloads: older .uf2 builds and layout exports.
+leftover_downloads() {
+  local f
+  find "$DOWNLOADS_DIR" -maxdepth 1 -type f -iname '*.uf2' -printf '%f\n' 2>/dev/null |
+    grep -E '^[0-9a-fA-F]{8}-[0-9a-fA-F-]{27}_v[0-9.]+_.*\.uf2$' |
+    while IFS= read -r f; do printf '%s\n' "$DOWNLOADS_DIR/$f"; done
+  go60_json_downloads | cut -f2-
 }
 
 # ------------------------------------------------------------------ drives ---
@@ -394,7 +427,7 @@ done
 [[ -z $SIM_ORDER || $SIM_ORDER =~ ^[RLrl]+$ ]] || die "--dry-run ORDER may only contain R, L, r, l"
 
 say "${B}Go60 firmware flasher$RST"
-((DRY_RUN)) && say "${YLW}DRY RUN: simulating drives in order '$SIM_ORDER'. Downloads, firmware/ and git are not changed.$RST"
+((DRY_RUN)) && say "${YLW}DRY RUN: simulating drives in order '$SIM_ORDER'. Downloads, firmware/, layout/ and git are not changed.$RST"
 
 # --- pick the firmware file
 if [[ -n $SOURCE ]]; then
@@ -434,6 +467,15 @@ while IFS= read -r f; do
 done < <(archived_files)
 PREV_VERSION=${PREVIOUS:+$(version_of "$PREVIOUS")}
 
+# The layout JSON export ("Download" in the Layout Editor) for the same layout.
+LAYOUT_ID=$(layout_id_of "$SOURCE")
+LAYOUT_JSON=''
+LAYOUT_TITLE=''
+if [[ -n $LAYOUT_ID ]] && command -v jq >/dev/null; then
+  LAYOUT_JSON=$(go60_json_downloads | awk -F '\t' -v id="$LAYOUT_ID" 'index($1, id) == 1 { print $2; exit }')
+  [[ -n $LAYOUT_JSON ]] && LAYOUT_TITLE=$(jq -r '.title // empty' -- "$LAYOUT_JSON")
+fi
+
 say
 info "Firmware to flash"
 say "    File:      ${SOURCE/#$HOME/\~}"
@@ -444,6 +486,12 @@ if [[ -n $PREVIOUS ]]; then
   say "    Previous:  ${PREVIOUS##*/} (version ${PREV_VERSION:-unknown})"
 fi
 [[ -n $IDENTICAL && $IDENTICAL != "$SOURCE" ]] && say "    ${DIM}Identical to archived ${IDENTICAL##*/}$RST"
+if [[ -n $LAYOUT_JSON ]]; then
+  say "    Layout:    $LAYOUT_TITLE (JSON export: ${LAYOUT_JSON##*/})"
+elif ((!IN_ARCHIVE)); then
+  warn "No layout JSON export for this layout in $DOWNLOADS_DIR, so layout/current.json won't be updated."
+  say "    ${DIM}(Layout Editor: download the layout as JSON before running go60-flash to keep it in git.)$RST"
+fi
 VERSION_CHANGED=0
 if [[ -n $VERSION && -n $PREV_VERSION && $VERSION != "$PREV_VERSION" ]]; then
   VERSION_CHANGED=1
@@ -481,6 +529,22 @@ else
   else
     mv -- "$SOURCE" "$FIRMWARE" || die "Moving ${SOURCE##*/} to $FIRMWARE_DIR failed"
     info "Archived as firmware/${FIRMWARE##*/}"
+  fi
+fi
+
+# --- save the layout JSON export as layout/current.json
+LAYOUT_SAVED=0
+if [[ -n $LAYOUT_JSON ]]; then
+  if ((DRY_RUN)); then
+    info "Would save ${LAYOUT_JSON##*/} as layout/${LAYOUT_FILE##*/} and remove it from Downloads"
+  elif mkdir -p "$(dirname -- "$LAYOUT_FILE")" &&
+    jq . -- "$LAYOUT_JSON" > "$LAYOUT_FILE.tmp" && mv -- "$LAYOUT_FILE.tmp" "$LAYOUT_FILE"; then
+    rm -f -- "$LAYOUT_JSON"
+    LAYOUT_SAVED=1
+    info "Saved layout “$LAYOUT_TITLE” as layout/${LAYOUT_FILE##*/}"
+  else
+    rm -f -- "$LAYOUT_FILE.tmp"
+    err "Couldn't save ${LAYOUT_JSON##*/} to $LAYOUT_FILE; left it in Downloads."
   fi
 fi
 
@@ -560,17 +624,36 @@ if ((VERSION_CHANGED && DONE > 0)); then
   notify critical "Firmware version changed ($PREV_VERSION → $VERSION): do the configuration reset (see terminal)."
 fi
 
-# --- commit the archived firmware
+# --- offer to delete other Go60 files still in Downloads
+mapfile -t LEFTOVERS < <(leftover_downloads | grep -vxF -e "$SOURCE" -e "${LAYOUT_JSON:-$SOURCE}")
+if ((${#LEFTOVERS[@]})); then
+  say
+  info "Other Go60 files still in Downloads (older builds or exports):"
+  for f in "${LEFTOVERS[@]}"; do say "    ${f##*/}"; done
+  if ((DRY_RUN)); then
+    info "Would offer to delete them."
+  elif ask "Delete them?" n; then
+    rm -f -- "${LEFTOVERS[@]}" && ok "Deleted."
+  fi
+fi
+
+# --- commit the archived firmware and layout
+COMMIT_PATHS=("$FIRMWARE")
+((LAYOUT_SAVED)) && COMMIT_PATHS+=("$LAYOUT_FILE")
 if ((DRY_RUN)); then
   say
-  info "Would offer to commit firmware/${FIRMWARE##*/} to git."
+  info "Would offer to commit firmware/${FIRMWARE##*/}${LAYOUT_JSON:+ and layout/${LAYOUT_FILE##*/}} to git."
 elif git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1 &&
-  [[ -n $(git -C "$REPO_DIR" status --porcelain -- "$FIRMWARE" 2>/dev/null) ]]; then
+  [[ -n $(git -C "$REPO_DIR" status --porcelain -- "${COMMIT_PATHS[@]}" 2>/dev/null) ]]; then
   say
-  if ask "Commit firmware/${FIRMWARE##*/} to git?" y; then
+  commit_what="firmware/${FIRMWARE##*/}"
+  ((LAYOUT_SAVED)) && commit_what+=" and layout/${LAYOUT_FILE##*/}"
+  if ask "Commit $commit_what to git?" y; then
     halves_msg=$(for h in R L; do printf '%s: %s\n' "${NAME[$h],,}" "${STATE[$h]}"; done)
-    if git -C "$REPO_DIR" add -- "$FIRMWARE" &&
-      git -C "$REPO_DIR" commit -q -m "Flash ${FIRMWARE##*/}" -m "Firmware version: ${VERSION:-unknown}"$'\n'"$halves_msg" -- "$FIRMWARE"; then
+    body="Firmware version: ${VERSION:-unknown}"
+    ((LAYOUT_SAVED)) && body+=$'\n'"Layout: $LAYOUT_TITLE"
+    if git -C "$REPO_DIR" add -- "${COMMIT_PATHS[@]}" &&
+      git -C "$REPO_DIR" commit -q -m "Flash ${FIRMWARE##*/}" -m "$body"$'\n'"$halves_msg" -- "${COMMIT_PATHS[@]}"; then
       ok "Committed."
       if git -C "$REPO_DIR" remote get-url origin >/dev/null 2>&1 && ask "Push to origin?" y; then
         git -C "$REPO_DIR" push -q && ok "Pushed." || err "Push failed."
