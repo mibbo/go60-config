@@ -30,6 +30,12 @@
       "prompt": "how do I do super + right arrow on my go60? I use it to move windows in hyprland",
       "expected_output": "Starts with a blockquote summary: '> **Super + →** : `LH T1` hold + `RH C2R5` hold + `LH C2R3` tap', then plain-language explanation of each key, the hold/lock behaviour of SymbolNav, and alternatives briefly.",
       "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "i havent touched my go60 layout in like 4 months, i want to swap two keys. how did the flashing go again?",
+      "expected_output": "Runs go60-status first and mentions its findings (last flash date, anything waiting in Downloads), then walks through Layout Editor edit -> Save and Build + JSON download -> go60-flash / Super+Shift+Ctrl+K -> bootloader combos per cable setup -> version-change reset if needed -> commit/push. Lets the user run go60-flash themselves.",
+      "files": []
     }
   ]
 }

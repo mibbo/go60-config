@@ -9,7 +9,8 @@ Firmware flashing workflow and firmware history for my MoErgo Go60 split keyboar
 - `skills/go60/`: a Claude Code skill, so Claude can answer "where is å?" or "how do I get to the arrows?"
   from any folder, plus the `go60-keys` command and an interactive cheat sheet
 - `AGENTS.md` (and `CLAUDE.md`, which imports it): context for AI agents working in this repo
-- `scripts/install`: symlinks everything into place (`~/.local/bin`, `~/.claude/skills/go60`). Run it once
+- `scripts/install`: symlinks everything into place (`go60-flash`, `go60-keys` and `go60-status` in `~/.local/bin`,
+  the skill in `~/.claude/skills/go60`). Run it once
   after cloning; after that, `git pull` updates everything.
 
 ## Layout help
@@ -22,7 +23,19 @@ go60-keys show SymbolNav         # draw a layer with Finnish legends
 go60-keys cheatsheet --open      # interactive cheat sheet (search, per-layer tabs)
 ```
 
-You can also just ask Claude about the keyboard in any session. The `go60` skill uses the layout that is actually flashed.
+`go60-status` shows where things stand: the flashed layout and firmware (and how long ago), builds waiting in
+`~/Downloads`, unpushed commits, and whether everything is installed.
+
+## Ask Claude
+
+The `go60` skill works in any Claude Code session. It uses the layout that is actually flashed and knows
+this whole toolkit. For example:
+
+- "missä on å?" / "how do I type { on my Go60?" / "how do I do Super + →?"
+- "open the Go60 cheat sheet"
+- "I haven't flashed in months, walk me through changing a key and flashing"
+- "only the left half got flashed, what now?" / "roll back to my previous layout"
+- "what can my go60-config repo do?"
 
 ## Workflow
 

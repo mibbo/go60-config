@@ -1,6 +1,6 @@
 ---
 name: go60
-description: Answers questions about the user's MoErgo Go60 split keyboard using the layout that is actually flashed on it. It finds where a character, key or function is (å, ö, {, @, arrows, Enter, Esc, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, helps a split-keyboard beginner learn the layout, and opens a visual cheat sheet. Use it whenever the user mentions their Go60, split keyboard, ergonomic keyboard, keyboard layers, thumb cluster, "where is X on my keyboard", "how do I type X", or the MoErgo Layout Editor, even if they don't say "Go60". Also use it for changing or re-flashing the Go60 layout (go60-flash).
+description: The user's MoErgo Go60 split keyboard and its go60-config toolkit. Answers where a character, key or function is on the layout that is actually flashed (å, ö, {, @, arrows, Enter, Super, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, coaches a split-keyboard beginner, and opens a visual cheat sheet. Also guides changing the layout in the MoErgo Layout Editor, flashing with go60-flash (step by step, even after months away), fixing flash problems, rolling back, and checking the setup's state with go60-status. Use it whenever the user mentions their Go60, split or ergonomic keyboard, keyboard layers, thumb keys, "where is X on my keyboard", "how do I type X", flashing or updating keyboard firmware, the Layout Editor, or asks what their keyboard setup can do, even if they don't say "Go60".
 ---
 
 # Go60 keyboard helper
@@ -71,15 +71,34 @@ If something isn't on the layout, or is awkward to reach, say so. Then offer to 
 the Layout Editor (layer, key position, behavior). Don't edit `layout/current.json` to "add" keys: the
 keyboard only changes when the user rebuilds in the editor and flashes.
 
+## Flashing, changing the layout, and "how does this work again?"
+
+The repo is a small toolkit: flashing (`go60-flash`), layout lookup and cheat sheet (`go60-keys`), a status
+check (`go60-status`), and a git history of every flashed firmware and layout. When the user asks what it can
+do, how to flash, or comes back after a break:
+
+1. Run `go60-status` first. It shows when the last flash was, which layout and firmware version are on
+   the keyboard, whether a new build is waiting in `~/Downloads`, unpushed commits, and whether the tools
+   are installed. Mention anything that needs attention, like a missing JSON export or unpushed commits.
+2. Read `references/toolkit.md` and walk the user through the task step by step. Expect that they
+   don't remember the details. For flashing, give the bootloader combos for their cable setup and
+   mention the configuration reset when the firmware version changes.
+3. `go60-flash` is interactive and needs the keyboard, so let the user run it in their terminal (or
+   with Super+Shift+Ctrl+K) rather than running it yourself. `go60-flash --dry-run` is a safe rehearsal.
+
 ## Reference files (read when needed)
+
+- `references/toolkit.md`: everything the repo can do, the full flashing walkthrough, flash problems,
+  retrying one half, rolling back, layout history, and setting up on a new computer. Read it for any
+  flashing, updating or "what can this do" question.
 
 - `references/key-positions.md`: position names (C1–C6, R1–R5, T1–T3), fingers, and which facts are
   verified. Read it when an answer depends on exact physical placement.
 - `references/finnish-layout.md`: what every key code types with the Finnish layout, plus dead keys and
   AltGr. Read it when explaining symbols or why a key types something unexpected.
 - `references/beginner-guide.md`: split-keyboard basics (home position, layers, thumbs, Magic key,
-  learning tips) and how to change and flash the layout. Read it for "how do I get started" or
-  "how does this work" questions, and when helping the user change their layout.
+  learning tips) and how to suggest layout changes. Read it for "how do I get started" or "how do
+  layers work" questions, and when helping the user design a change.
 
 ## Keeping the answers current
 

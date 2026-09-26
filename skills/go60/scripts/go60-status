@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# go60-status — where things stand with the Go60 setup: the flashed layout and
+# firmware, files waiting in Downloads, git sync, and installed tools.
+# Read-only: it never changes anything (no git fetch either).
+
+set -uo pipefail
+
+REPO_DIR=$(readlink -f "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../..")
+LAYOUT="$REPO_DIR/layout/current.json"
+DOWNLOADS=$(xdg-user-dir DOWNLOAD 2>/dev/null || echo "$HOME/Downloads")
+CHEATSHEET="${XDG_CACHE_HOME:-$HOME/.cache}/go60/cheatsheet.html"
+git_() { git -C "$REPO_DIR" "$@"; }
+
+days_ago() { # epoch -> "N days ago"
+  local d=$(( ($(date +%s) - $1) / 86400 ))
+  case $d in 0) echo "today" ;; 1) echo "yesterday" ;; *) echo "$d days ago" ;; esac
+}
+
+echo "Go60 setup: $REPO_DIR"
+
+echo
+echo "Flashed layout"
+if [[ -f $LAYOUT ]]; then
+  title=$(jq -r '.title // "?"' "$LAYOUT")
+  saved=$(jq -r '.date // empty' "$LAYOUT")
+  echo "  $title  (saved in the Layout Editor $(date -d "@${saved:-0}" +%F), layers: $(jq -r '.layer_names | join(", ")' "$LAYOUT"))"
+  c=$(git_ log -1 --format=%ct -- layout/current.json 2>/dev/null)
+  [[ -n $c ]] && echo "  layout/current.json last committed $(date -d "@$c" +%F) ($(days_ago "$c"))"
+else
+  echo "  none: layout/current.json is missing (download the layout JSON before running go60-flash)"
+fi
+
+echo
+echo "Firmware"
+last=$(ls -1 "$REPO_DIR"/firmware/*.uf2 2>/dev/null | sort | tail -n 1)
+if [[ -n $last ]]; then
+  n=$(ls -1 "$REPO_DIR"/firmware/*.uf2 | wc -l)
+  c=$(git_ log -1 --format=%ct -- "firmware/${last##*/}" 2>/dev/null)
+  echo "  last flashed: ${last##*/}"
+  [[ -n $c ]] && echo "  committed $(date -d "@$c" +%F) ($(days_ago "$c")); $n firmware file(s) in the archive"
+  [[ $last =~ _v([0-9.]+)_ ]] && echo "  firmware version: v${BASH_REMATCH[1]}"
+else
+  echo "  nothing archived yet"
+fi
+
+echo
+echo "Waiting in $DOWNLOADS"
+found=0
+while IFS= read -r f; do
+  [[ -n $f ]] || continue
+  found=1
+  echo "  $(date -r "$f" '+%F %H:%M')  ${f##*/}"
+done < <(find "$DOWNLOADS" -maxdepth 1 -type f \( -iname '*.uf2' -o -iname '*.json' \) 2>/dev/null |
+  while IFS= read -r f; do
+    case $f in
+      *.uf2|*.UF2) printf '%s\n' "$f" ;;
+      *) [[ $(jq -r '.keyboard // empty' "$f" 2>/dev/null) == go60 ]] && printf '%s\n' "$f" ;;
+    esac
+  done | sort)
+((found)) || echo "  no Go60 builds or layout exports (nothing new to flash)"
+
+echo
+echo "Git"
+if git_ rev-parse --git-dir >/dev/null 2>&1; then
+  dirty=$(git_ status --porcelain | wc -l)
+  sb=$(git_ status -sb | head -n 1)
+  echo "  ${sb#\#\# }"
+  ((dirty)) && echo "  $dirty uncommitted change(s)"
+  [[ $sb == *ahead* ]] && echo "  not pushed yet: run 'git -C $REPO_DIR push'"
+  [[ $sb == *behind* ]] && echo "  behind origin: run 'git -C $REPO_DIR pull'"
+  echo "  (based on the last fetch; run 'git fetch' to check GitHub)"
+fi
+
+echo
+echo "Installed"
+check() { if [[ $2 == ok ]]; then echo "  ✓ $1"; else echo "  ✗ $1  ($2)"; fi; }
+[[ $(readlink -f "$HOME/.local/bin/go60-flash" 2>/dev/null) == "$REPO_DIR/scripts/go60-flash" ]] &&
+  check go60-flash ok || check go60-flash "run $REPO_DIR/scripts/install"
+[[ $(readlink -f "$HOME/.local/bin/go60-keys" 2>/dev/null) == "$REPO_DIR/skills/go60/scripts/go60-keys" ]] &&
+  check go60-keys ok || check go60-keys "run $REPO_DIR/scripts/install"
+[[ $(readlink -f "$HOME/.claude/skills/go60" 2>/dev/null) == "$REPO_DIR/skills/go60" ]] &&
+  check "Claude skill (~/.claude/skills/go60)" ok || check "Claude skill" "run $REPO_DIR/scripts/install"
+grep -q 'go60-flash' "$HOME/.config/hypr/bindings.lua" 2>/dev/null &&
+  check "Super+Shift+Ctrl+K runs go60-flash" ok || check "Hyprland shortcut" "not in ~/.config/hypr/bindings.lua"
+if [[ -f $CHEATSHEET && -f $LAYOUT && $CHEATSHEET -nt $LAYOUT ]]; then
+  check "cheat sheet up to date (go60-keys cheatsheet --open)" ok
+else
+  check "cheat sheet" "outdated or missing: run go60-keys cheatsheet"
+fi

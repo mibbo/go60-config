@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install this repo's tools on this machine (safe to re-run):
-#   ~/.local/bin/go60-flash, ~/.local/bin/go60-keys  -> commands on PATH
+#   ~/.local/bin/go60-flash, go60-keys, go60-status -> commands on PATH
 #   ~/.claude/skills/go60                            -> the Claude Code skill
 # Everything is a symlink into the repo, so `git pull` updates it all.
 
@@ -19,6 +19,7 @@ link() { # target link
 
 link "$REPO_DIR/scripts/go60-flash" "$HOME/.local/bin/go60-flash"
 link "$REPO_DIR/skills/go60/scripts/go60-keys" "$HOME/.local/bin/go60-keys"
+link "$REPO_DIR/skills/go60/scripts/go60-status" "$HOME/.local/bin/go60-status"
 link "$REPO_DIR/skills/go60" "$HOME/.claude/skills/go60"
 
 # Old name of the layout viewer (replaced by `go60-keys show`).
