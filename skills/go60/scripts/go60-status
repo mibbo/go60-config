@@ -49,6 +49,32 @@ else
   echo "  nothing archived yet"
 fi
 
+src=$(git_ log -1 --format=%b -- 'firmware/*.uf2' 2>/dev/null | sed -n 's/^Source: //p' | head -n 1)
+[[ -n $src ]] && echo "  source: $src"
+
+echo
+echo "Text keymap (config/go60.keymap)"
+if [[ -f $REPO_DIR/config/go60.keymap ]]; then
+  chk=$("$REPO_DIR/skills/go60/scripts/go60-keymap" check 2>&1)
+  if grep -q '^No changes' <<<"$chk"; then
+    echo "  same as the flashed layout"
+  elif grep -q '^✓' <<<"$chk"; then
+    n=$(sed -n '/^Changes compared/,$p' <<<"$chk" | grep -c '^  ')
+    echo "  $n change(s) not flashed yet (see: go60-keymap check; flash with: go60-build)"
+  else
+    echo "  has errors: run go60-keymap check"
+  fi
+  [[ -n $(git_ status --porcelain -- config/ 2>/dev/null) ]] && echo "  uncommitted edits in config/"
+  if command -v podman >/dev/null; then
+    podman image exists go60-zmk-build 2>/dev/null && echo "  build container ready (podman)" ||
+      echo "  build container not built yet (the first go60-build creates it)"
+  else
+    echo "  podman not installed: needed by go60-build (omarchy pkg add podman)"
+  fi
+else
+  echo "  not set up (create it with: go60-keymap init)"
+fi
+
 echo
 echo "Waiting in $DOWNLOADS"
 found=0
@@ -84,6 +110,10 @@ check() { if [[ $2 == ok ]]; then echo "  ✓ $1"; else echo "  ✗ $1  ($2)"; f
   check go60-flash ok || check go60-flash "run $REPO_DIR/scripts/install"
 [[ $(readlink -f "$HOME/.local/bin/go60-keys" 2>/dev/null) == "$REPO_DIR/skills/go60/scripts/go60-keys" ]] &&
   check go60-keys ok || check go60-keys "run $REPO_DIR/scripts/install"
+for cmd in go60-build go60-keymap; do
+  [[ -n $(readlink -f "$HOME/.local/bin/$cmd" 2>/dev/null) && -e $HOME/.local/bin/$cmd ]] &&
+    check "$cmd" ok || check "$cmd" "run $REPO_DIR/scripts/install"
+done
 [[ $(readlink -f "$HOME/.claude/skills/go60" 2>/dev/null) == "$REPO_DIR/skills/go60" ]] &&
   check "Claude skill (~/.claude/skills/go60)" ok || check "Claude skill" "run $REPO_DIR/scripts/install"
 grep -q 'go60-flash' "$HOME/.config/hypr/bindings.lua" 2>/dev/null &&

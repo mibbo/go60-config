@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""go60-keymap: edit the Go60 layout as text (config/go60.keymap).
+
+  go60-keymap init [--from JSON] [--force]   create config/go60.keymap from a Layout Editor JSON
+                                             (default: layout/current.json, the flashed layout)
+  go60-keymap check                          validate the keymap and list what changed since the last flash
+  go60-keymap format                         re-align the keymap and refresh the Finnish legend comments
+  go60-keymap to-json [-o FILE]              convert the keymap to Layout Editor JSON (to import in the editor)
+  go60-keymap from-json JSON                 print a keymap made from a Layout Editor JSON
+
+Build and flash with `go60-build`. Options: --keymap PATH (default: config/go60.keymap in the repo).
+"""
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import keymap as km  # noqa: E402
+import zmk_keymap as zk  # noqa: E402
+
+REPO = km.REPO_DIR
+DEFAULT_KEYMAP = REPO / "config" / "go60.keymap"
+
+KNOWN = set(km.FI) | set(km.NAMED) | set(km.ALIASES) | set(km.SHIFTED_ALIASES) | set(km.MOD_KEYS) | {
+    "RET", "BSPC", "DEL", "TAB", "ESC", "SPACE", "KP_ENTER", "KP_NUM", "KP_DOT", "NON_US_BSLH",
+    "RGB_STATUS", "OUT_USB", "OUT_BLE", "OUT_TOG", "BT_SEL", "BT_CLR", "BT_CLR_ALL", "BT_NXT", "BT_PRV", "BT_DISC",
+}
+KNOWN_RE = re.compile(r"^(F\d{1,2}|KP_\w+|C_\w+|K_\w+|RGB_\w+|EP_\w+|LAYER_\w+|\d+|INPUT_\w+|MB\d|[A-Z])$")
+
+
+def load_base():
+    return km.load_layout()
+
+
+def read_keymap(path):
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        sys.exit(f"go60-keymap: {path} doesn't exist yet. Create it with: go60-keymap init")
+
+
+def unknown_codes(data):
+    """Key codes that don't look like anything ZMK knows (probably typos)."""
+    bad = set()
+
+    def walk(p, top):
+        v = str(p.get("value"))
+        if not top and not p.get("params") and not (v in KNOWN or KNOWN_RE.match(v)):
+            bad.add(v)
+        for q in p.get("params") or []:
+            walk(q, False)
+
+    for layer in data["layers"]:
+        for b in layer:
+            if b.get("value") in ("&kp", "&mt", "&lt", "&sk"):
+                for q in b.get("params") or []:
+                    walk(q, False)
+    return sorted(bad)
+
+
+def diff_lines(old, new):
+    Lo, Ln = km.Layout(old), km.Layout(new)
+    lines = []
+    if old.get("layer_names") != new.get("layer_names"):
+        lines.append(f"layers: {', '.join(old.get('layer_names', []))}  →  {', '.join(new['layer_names'])}")
+    for n, layer in enumerate(new["layers"]):
+        name = new["layer_names"][n]
+        try:
+            o = old["layer_names"].index(name)
+            old_layer = old["layers"][o]
+        except (ValueError, IndexError):
+            lines.append(f"{name}: new layer")
+            continue
+        for i, b in enumerate(layer):
+            if zk.same(old_layer[i], b):
+                continue
+            a, c = Lo.describe(old_layer[i]), Ln.describe(b)
+            la = {"trans": "▽", "none": "·"}.get(a["kind"], a["label"])
+            lc = {"trans": "▽", "none": "·"}.get(c["kind"], c["label"])
+            lines.append(f"{name:<10} {km.position_name(i):<8} {la} → {lc}   ({a['zmk']} → {c['zmk']})"
+                         f"   {km.position_words(i)}")
+    if old.get("inputListeners") != new.get("inputListeners"):
+        lines.append("trackpad settings (input listeners) changed")
+    for f in ("custom_defined_behaviors", "custom_devicetree"):
+        if (old.get(f) or "") != (new.get(f) or ""):
+            lines.append(f"{f.replace('_', ' ')} changed")
+    return lines
+
+
+def cmd_init(args):
+    src = Path(args.from_json) if args.from_json else km.layout_path()
+    data = json.loads(src.read_text(encoding="utf-8"))
+    out = Path(args.keymap)
+    if out.exists() and not args.force:
+        sys.exit(f"go60-keymap: {out} already exists (use --force to overwrite it)")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(zk.to_keymap(data), encoding="utf-8")
+    back, _ = zk.to_json(out.read_text(encoding="utf-8"), data)
+    if [[zk.normalize(b) for b in l] for l in back["layers"]] != [[zk.normalize(b) for b in l] for l in data["layers"]]:
+        sys.exit("go60-keymap: round-trip check failed; the keymap doesn't match the JSON (please report)")
+    print(f"Wrote {out} from {src.name} ({data.get('title', '')}); round-trip check passed.")
+
+
+def cmd_check(args):
+    text = read_keymap(args.keymap)
+    base = load_base()
+    try:
+        new, changed = zk.to_json(text, base)
+    except (zk.KeymapError, ValueError) as e:
+        print(f"✗ {args.keymap}: {e}")
+        return 1
+    problems = 0
+    for code in unknown_codes(new):
+        print(f"! unknown key code {code!r}: check the spelling (the build fails if it's wrong)")
+        problems += 1
+    if "Magic" not in new["layer_names"]:
+        print("! no layer named Magic: the Magic key (and bootloader keys) need it")
+    n_layers = len(new["layers"])
+    print(f"✓ keymap parses: {n_layers} layers ({', '.join(new['layer_names'])}), 60 keys each")
+    lines = diff_lines(base, new)
+    if lines:
+        print(f"\nChanges compared to the flashed layout ({km.layout_path().name}):")
+        for line in lines:
+            print("  " + line)
+    else:
+        print("No changes compared to the flashed layout.")
+    return 1 if problems else 0
+
+
+def cmd_format(args):
+    text = read_keymap(args.keymap)
+    base = load_base()
+    new, _ = zk.to_json(text, base)
+    formatted = zk.to_keymap(new)
+    if formatted != text:
+        Path(args.keymap).write_text(formatted, encoding="utf-8")
+        print(f"Formatted {args.keymap}")
+    else:
+        print("Already formatted.")
+
+
+def cmd_to_json(args):
+    new, _ = zk.to_json(read_keymap(args.keymap), load_base())
+    if args.output:
+        Path(args.output).write_text(zk.dumps(new), encoding="utf-8")
+        print(args.output)
+    else:
+        sys.stdout.write(zk.dumps(new))
+
+
+def cmd_from_json(args):
+    data = json.loads(Path(args.json).read_text(encoding="utf-8"))
+    sys.stdout.write(zk.to_keymap(data))
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="go60-keymap", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--keymap", default=str(DEFAULT_KEYMAP))
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("init"); p.add_argument("--from", dest="from_json"); p.add_argument("--force", action="store_true")
+    sub.add_parser("check")
+    sub.add_parser("format")
+    p = sub.add_parser("to-json"); p.add_argument("-o", "--output")
+    p = sub.add_parser("from-json"); p.add_argument("json")
+    args = ap.parse_args()
+    try:
+        rc = {"init": cmd_init, "check": cmd_check, "format": cmd_format,
+              "to-json": cmd_to_json, "from-json": cmd_from_json}[args.cmd](args)
+    except zk.KeymapError as e:
+        sys.exit(f"go60-keymap: {e}")
+    sys.exit(rc or 0)
+
+
+if __name__ == "__main__":
+    main()

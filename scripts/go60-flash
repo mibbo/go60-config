@@ -32,6 +32,9 @@ DRY_RUN=0
 SIM_ORDER=''
 USE_LATEST=0
 SOURCE=''
+LAYOUT_JSON_ARG=''  # --layout-json: layout to save instead of a Downloads export
+SOURCE_DESC=''      # --source: where the firmware came from (recorded in the commit)
+KEYMAP="$REPO_DIR/config/go60.keymap"
 
 # ---------------------------------------------------------------- helpers ---
 
@@ -83,6 +86,10 @@ Options:
       --right-only      Only flash the right half
       --left-only       Only flash the left half
   -l, --latest          Re-flash the latest archived firmware
+      --layout-json FILE  Save FILE as layout/current.json instead of looking for a
+                        Layout Editor export in Downloads (go60-build uses this)
+      --source TEXT     Where the firmware came from, recorded in the commit
+                        (default: "Layout Editor" for downloads)
   -t, --timeout SECS    How long to wait for each bootloader drive (default $WAIT_TIMEOUT)
   -n, --dry-run[=ORDER] Simulate the bootloader drives instead of using the keyboard.
                         ORDER lists the drives in the order they appear:
@@ -411,6 +418,8 @@ while (($#)); do
     --right-only) HALVES=(R); STATE[L]=skipped ;;
     --left-only) HALVES=(L); STATE[R]=skipped ;;
     -l|--latest) USE_LATEST=1 ;;
+    --layout-json) LAYOUT_JSON_ARG=${2:?--layout-json needs a file}; shift ;;
+    --source) SOURCE_DESC=${2:?--source needs a description}; shift ;;
     -t|--timeout) WAIT_TIMEOUT=${2:?--timeout needs a number}; shift ;;
     --timeout=*) WAIT_TIMEOUT=${1#*=} ;;
     -n|--dry-run) DRY_RUN=1; SIM_ORDER=RL ;;
@@ -445,7 +454,10 @@ else
     ask "Re-flash the latest archived firmware, ${latest##*/}?" n || exit 0
     SOURCE=$latest
   fi
+  [[ $SOURCE == "$DOWNLOADS_DIR"/* ]] && SOURCE_DESC=${SOURCE_DESC:-Layout Editor}
 fi
+[[ -z $SOURCE_DESC && $SOURCE == "$(readlink -f -- "$FIRMWARE_DIR")"/* ]] && SOURCE_DESC="re-flash of ${SOURCE##*/}"
+SOURCE_DESC=${SOURCE_DESC:-${SOURCE##*/}}
 is_uf2 "$SOURCE" || die "${SOURCE##*/} is not a UF2 firmware file"
 
 VERSION=$(version_of "$SOURCE")
@@ -471,7 +483,11 @@ PREV_VERSION=${PREVIOUS:+$(version_of "$PREVIOUS")}
 LAYOUT_ID=$(layout_id_of "$SOURCE")
 LAYOUT_JSON=''
 LAYOUT_TITLE=''
-if [[ -n $LAYOUT_ID ]] && command -v jq >/dev/null; then
+if [[ -n $LAYOUT_JSON_ARG ]]; then
+  [[ -f $LAYOUT_JSON_ARG ]] || die "No such layout file: $LAYOUT_JSON_ARG"
+  LAYOUT_JSON=$(readlink -f -- "$LAYOUT_JSON_ARG")
+  LAYOUT_TITLE=$(jq -r '.title // empty' -- "$LAYOUT_JSON")
+elif [[ -n $LAYOUT_ID ]] && command -v jq >/dev/null; then
   LAYOUT_JSON=$(go60_json_downloads | awk -F '\t' -v id="$LAYOUT_ID" 'index($1, id) == 1 { print $2; exit }')
   [[ -n $LAYOUT_JSON ]] && LAYOUT_TITLE=$(jq -r '.title // empty' -- "$LAYOUT_JSON")
 fi
@@ -487,7 +503,8 @@ if [[ -n $PREVIOUS ]]; then
 fi
 [[ -n $IDENTICAL && $IDENTICAL != "$SOURCE" ]] && say "    ${DIM}Identical to archived ${IDENTICAL##*/}$RST"
 if [[ -n $LAYOUT_JSON ]]; then
-  say "    Layout:    $LAYOUT_TITLE (JSON export: ${LAYOUT_JSON##*/})"
+  say "    Layout:    $LAYOUT_TITLE (${LAYOUT_JSON_ARG:+from the keymap, }${LAYOUT_JSON##*/})"
+  say "    Source:    $SOURCE_DESC"
 elif ((!IN_ARCHIVE)); then
   warn "No layout JSON export for this layout in $DOWNLOADS_DIR, so layout/current.json won't be updated."
   say "    ${DIM}(Layout Editor: download the layout as JSON before running go60-flash to keep it in git.)$RST"
@@ -534,14 +551,31 @@ fi
 
 # --- save the layout JSON export as layout/current.json
 LAYOUT_SAVED=0
+KEYMAP_SYNCED=0
+# The text keymap (config/go60.keymap) follows editor flashes, unless it has edits of its
+# own that were never flashed. Check that before current.json changes.
+KEYMAP_IN_SYNC=0
+if [[ -n $LAYOUT_JSON && -z $LAYOUT_JSON_ARG && -f $KEYMAP ]] &&
+  "$REPO_DIR/skills/go60/scripts/go60-keymap" check 2>/dev/null | grep -q '^No changes'; then
+  KEYMAP_IN_SYNC=1
+fi
 if [[ -n $LAYOUT_JSON ]]; then
   if ((DRY_RUN)); then
-    info "Would save ${LAYOUT_JSON##*/} as layout/${LAYOUT_FILE##*/} and remove it from Downloads"
+    info "Would save ${LAYOUT_JSON##*/} as layout/${LAYOUT_FILE##*/} and remove the original"
   elif mkdir -p "$(dirname -- "$LAYOUT_FILE")" &&
     jq . -- "$LAYOUT_JSON" > "$LAYOUT_FILE.tmp" && mv -- "$LAYOUT_FILE.tmp" "$LAYOUT_FILE"; then
     rm -f -- "$LAYOUT_JSON"
     LAYOUT_SAVED=1
     info "Saved layout “$LAYOUT_TITLE” as layout/${LAYOUT_FILE##*/}"
+    if [[ -z $LAYOUT_JSON_ARG && -f $KEYMAP ]]; then
+      if ((KEYMAP_IN_SYNC)) && "$REPO_DIR/skills/go60/scripts/go60-keymap" init --force >/dev/null; then
+        KEYMAP_SYNCED=1
+        info "Updated config/go60.keymap to match the new layout"
+      else
+        warn "config/go60.keymap has edits that were never flashed, so it was NOT updated to the editor layout."
+        warn "Decide which to keep: 'go60-keymap init --force' takes the flashed layout (drops the keymap edits)."
+      fi
+    fi
     # Refresh the cheat sheet (go60-keys cheatsheet --open) for the new layout.
     "$REPO_DIR/skills/go60/scripts/go60-keys" --file "$LAYOUT_FILE" cheatsheet >/dev/null 2>&1 ||
       warn "Couldn't update the cheat sheet (run: go60-keys cheatsheet)."
@@ -643,6 +677,7 @@ fi
 # --- commit the archived firmware and layout
 COMMIT_PATHS=("$FIRMWARE")
 ((LAYOUT_SAVED)) && COMMIT_PATHS+=("$LAYOUT_FILE")
+((KEYMAP_SYNCED)) && COMMIT_PATHS+=("$KEYMAP")
 if ((DRY_RUN)); then
   say
   info "Would offer to commit firmware/${FIRMWARE##*/}${LAYOUT_JSON:+ and layout/${LAYOUT_FILE##*/}} to git."
@@ -651,10 +686,12 @@ elif git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1 &&
   say
   commit_what="firmware/${FIRMWARE##*/}"
   ((LAYOUT_SAVED)) && commit_what+=" and layout/${LAYOUT_FILE##*/}"
+  ((KEYMAP_SYNCED)) && commit_what+=" (+ config/go60.keymap)"
   if ask "Commit $commit_what to git?" y; then
     halves_msg=$(for h in R L; do printf '%s: %s\n' "${NAME[$h],,}" "${STATE[$h]}"; done)
     body="Firmware version: ${VERSION:-unknown}"
     ((LAYOUT_SAVED)) && body+=$'\n'"Layout: $LAYOUT_TITLE"
+    body+=$'\n'"Source: $SOURCE_DESC"
     if git -C "$REPO_DIR" add -- "${COMMIT_PATHS[@]}" &&
       git -C "$REPO_DIR" commit -q -m "Flash ${FIRMWARE##*/}" -m "$body"$'\n'"$halves_msg" -- "${COMMIT_PATHS[@]}"; then
       ok "Committed."

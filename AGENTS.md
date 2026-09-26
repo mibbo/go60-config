@@ -1,7 +1,8 @@
 # Agent guide: go60-config
 
-Firmware history, current layout, flashing scripts and a Claude skill for the user's MoErgo Go60 split
-keyboard (ZMK firmware). The layout is edited in MoErgo's web Layout Editor, not as ZMK source. The OS is
+Firmware history, current layout, build and flashing scripts, and a Claude skill for the user's MoErgo Go60
+split keyboard (ZMK firmware). The layout is edited either in MoErgo's web Layout Editor or as text in
+`config/go60.keymap` (built locally with Podman). Both paths are supported and end in `go60-flash`. The OS is
 Omarchy (Arch + Hyprland) with the Finnish keyboard layout (`fi`). The user is new to split keyboards.
 
 ## Files
@@ -10,9 +11,11 @@ Omarchy (Arch + Hyprland) with the Finnish keyboard layout (`fi`). The user is n
 |------|------------|
 | `layout/current.json` | The layout that was last flashed (Layout Editor JSON export). `git log -p layout/current.json` shows changes over time. |
 | `firmware/*.uf2` | Every flashed firmware, named `<flash date>_v<firmware version>_<layout name>_<layout id>.uf2`. Binary: don't try to read keymaps from them, and don't edit or rewrite them. |
+| `config/go60.keymap` | The layout as an editable ZMK keymap (generated grid + Finnish legend comments). `config/*` other files and `Dockerfile` are from MoErgo's go60-zmk-config template (commit 8ccc854); `build/` is build output (ignored). |
+| `scripts/go60-build` | Checks the keymap, commits it, builds with Podman (ZMK version = currently flashed one), then runs `go60-flash --layout-json … --source …`. |
 | `scripts/go60-flash` | Flashing workflow (see `README.md`). Interactive; without the keyboard, only run it with `--dry-run`. |
-| `scripts/install` | Symlinks `go60-flash`, `go60-keys` and `go60-status` into `~/.local/bin` and the skill into `~/.claude/skills/go60`. |
-| `skills/go60/` | The `go60` Claude skill: `SKILL.md`, the `go60-keys` tool (`scripts/`), the cheat sheet template (`assets/`), and reference docs (`references/`). |
+| `scripts/install` | Symlinks `go60-flash`, `go60-build`, `go60-keymap`, `go60-keys` and `go60-status` into `~/.local/bin` and the skill into `~/.claude/skills/go60`. |
+| `skills/go60/` | The `go60` Claude skill: `SKILL.md`, tools in `scripts/` (`go60-keys`, `go60-keymap`, `go60-status`; `keymap.py` = positions and Finnish legends, `zmk_keymap.py` = JSON ↔ keymap converter), the cheat sheet template (`assets/`), and reference docs (`references/`). |
 
 ## Answering layout questions
 
@@ -33,6 +36,7 @@ must update the docs in the same commit**, without being asked. Before committin
 | a command, option or behavior in `scripts/go60-flash` | its `--help` text, `README.md` (workflow/options), `skills/go60/references/toolkit.md` |
 | `go60-keys` or `go60-status` (commands, output) | `README.md` (Layout help), `skills/go60/SKILL.md` (commands it tells Claude to run), `references/toolkit.md` |
 | `keymap.py` (positions, Finnish legends, behaviors) | `references/key-positions.md` or `references/finnish-layout.md` |
+| `zmk_keymap.py`, `go60-keymap` or `go60-build` (keymap format, conversion, build) | `references/keymap-editing.md`, the keymap header comment in `zmk_keymap.py`, `README.md` (Editing the layout as text); run the round-trip check below |
 | the cheat sheet (`assets/cheatsheet.html`) | the cheat sheet lines in `README.md` and `references/toolkit.md`, if what it does changed |
 | a new script, command or file type | `scripts/install` (if it goes on PATH), the file tables in `README.md` and this file, `references/toolkit.md` |
 | the flashing procedure, key combos or reset steps | `README.md`, `references/toolkit.md`, `references/beginner-guide.md` |
@@ -54,6 +58,9 @@ Rules of thumb:
   cheat sheet both use it. Keep `references/*.md` in sync when changing it.
 - After changing the skill or `go60-keys`, check with `go60-keys find å '{' enter`,
   `go60-keys show 2` and `go60-keys cheatsheet`. Test prompts are in `skills/go60/evals/evals.json`.
-- Planned for later: move to MoErgo's `go60-zmk-config` template (ZMK keymap source under `config/`, built
-  locally or with GitHub Actions). Keep the top level free for those files. This repo uses `scripts/`,
-  `firmware/`, `layout/` and `skills/`.
+- After changing the converter, the JSON → keymap → JSON round trip must stay lossless:
+  `go60-keymap --keymap /tmp/t.keymap init --from layout/current.json` checks it. Then run `go60-keymap check`
+  on the real keymap.
+- `layout/current.json` must always describe what's flashed. Only `go60-flash` writes it.
+- The repo follows MoErgo's template layout (`config/`, `Dockerfile` at the top level). Builds are local only;
+  don't add MoErgo's GitHub Actions workflow unless asked.

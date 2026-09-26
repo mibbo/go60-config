@@ -36,6 +36,12 @@
       "prompt": "i havent touched my go60 layout in like 4 months, i want to swap two keys. how did the flashing go again?",
       "expected_output": "Runs go60-status first and mentions its findings (last flash date, anything waiting in Downloads), then walks through Layout Editor edit -> Save and Build + JSON download -> go60-flash / Super+Shift+Ctrl+K -> bootloader combos per cable setup -> version-change reset if needed -> commit/push. Lets the user run go60-flash themselves.",
       "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "swap å and ö on my go60, the å key is too far away",
+      "expected_output": "Reads references/keymap-editing.md, edits config/go60.keymap swapping &kp LBKT (RH C3R5) and &kp SEMI (RH C5R3) on the Base layer, runs go60-keymap check, shows summary lines like 'Base RH C5R3: ö → å' and 'Base RH C3R5: å → ö', and tells the user to run go60-build. Mentions SymbolNav also has å if relevant.",
+      "files": []
     }
   ]
 }

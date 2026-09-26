@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# go60-build — build Go60 firmware from config/go60.keymap with MoErgo's ZMK build
+# container (Podman), then hand it to go60-flash.
+
+set -uo pipefail
+
+REPO_DIR=$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")
+KEYMAP="$REPO_DIR/config/go60.keymap"
+LAYOUT="$REPO_DIR/layout/current.json"
+TOOLS="$REPO_DIR/skills/go60/scripts"
+IMAGE=go60-zmk-build
+ZMK=''
+FLASH=1
+REBUILD_IMAGE=0
+FLASH_ARGS=()
+
+if [[ -t 1 ]]; then
+  B=$'\e[1m' RED=$'\e[31m' GRN=$'\e[32m' YLW=$'\e[33m' CYN=$'\e[36m' RST=$'\e[0m'
+else
+  B='' RED='' GRN='' YLW='' CYN='' RST=''
+fi
+info() { printf '%s==>%s %s\n' "$CYN$B" "$RST" "$*"; }
+ok()   { printf '%s ✓ %s%s\n' "$GRN" "$*" "$RST"; }
+warn() { printf '%s !  %s%s\n' "$YLW" "$*" "$RST" >&2; }
+die()  { printf '%s ✗ %s%s\n' "$RED" "$*" "$RST" >&2; notify-send -a 'Go60 build' -u critical 'Go60 build' "$*" 2>/dev/null; exit 1; }
+ask()  { local r hint='[y/N]'; [[ $2 == y ]] && hint='[Y/n]'; read -rp "$1 $hint " r || r=''; r=${r:-$2}; [[ ${r,,} == y* ]]; }
+
+usage() {
+  cat <<EOF
+Usage: go60-build [options] [-- go60-flash options]
+
+Build firmware from config/go60.keymap and flash it with go60-flash.
+
+  1. checks the keymap (go60-keymap check) and shows what changed since the last flash
+  2. offers to commit the keymap, so the firmware name records its git commit
+  3. builds with MoErgo's ZMK container in Podman (the first build downloads the
+     toolchain and takes a while; later builds take a minute or two)
+  4. runs go60-flash with the new firmware and the layout converted from the keymap
+
+Options:
+  --zmk REF        ZMK version to build with, e.g. v25.11 (default: the version of the
+                   last flashed firmware, so building doesn't change the firmware version)
+  --no-flash       only build; the firmware is left in build/
+  --rebuild-image  rebuild the build container (e.g. after MoErgo releases a new ZMK version)
+  -h, --help       show this help
+
+Anything after -- is passed to go60-flash, e.g.  go60-build -- --two-cables
+EOF
+}
+
+while (($#)); do
+  case $1 in
+    --zmk) ZMK=${2:?--zmk needs a version like v25.11}; shift ;;
+    --zmk=*) ZMK=${1#*=} ;;
+    --no-flash) FLASH=0 ;;
+    --rebuild-image) REBUILD_IMAGE=1 ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; FLASH_ARGS=("$@"); break ;;
+    *) usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+command -v podman >/dev/null || die "Podman is not installed. Install it with: omarchy pkg add podman"
+[[ -f $KEYMAP ]] || die "No $KEYMAP. Create it from the flashed layout with: go60-keymap init"
+
+# --- 1. check the keymap and whether the keyboard has a newer editor layout
+info "Checking config/go60.keymap"
+"$TOOLS/go60-keymap" check || { ask "The check found problems. Build anyway?" n || exit 1; }
+
+last_source=$(git -C "$REPO_DIR" log -1 --format=%b -- 'firmware/*.uf2' layout/current.json 2>/dev/null |
+  sed -n 's/^Source: //p' | head -n 1)
+keymap_changed_after=$(git -C "$REPO_DIR" log -1 --format=%ct -- config/go60.keymap 2>/dev/null)
+layout_changed_after=$(git -C "$REPO_DIR" log -1 --format=%ct -- layout/current.json 2>/dev/null)
+if [[ $last_source == "Layout Editor" && -n $layout_changed_after &&
+      ${keymap_changed_after:-0} -lt $layout_changed_after ]] &&
+   ! "$TOOLS/go60-keymap" check 2>/dev/null | grep -q '^No changes'; then
+  warn "The keyboard runs a layout flashed from the Layout Editor that is newer than this keymap."
+  warn "Building the keymap would undo those editor changes."
+  read -rp "[u]pdate the keymap from the flashed layout first, [c]ontinue anyway, or [q]uit? [u/c/Q] " r || r=q
+  case ${r,,} in
+    u*) "$TOOLS/go60-keymap" init --force || exit 1
+        info "Keymap updated from the flashed layout. Make your edits again, then re-run go60-build."
+        exit 0 ;;
+    c*) ;;
+    *) exit 0 ;;
+  esac
+fi
+
+# --- 2. commit the keymap so the firmware name can refer to it
+if [[ -n $(git -C "$REPO_DIR" status --porcelain -- config/) ]]; then
+  echo
+  if ask "Commit your config/ changes before building?" y; then
+    changes=$("$TOOLS/go60-keymap" check 2>/dev/null | sed -n 's/^  //p' | tr -s ' ')
+    n=$(grep -c . <<<"$changes")
+    case $n in
+      0) subject="Keymap: formatting or config changes" ;;
+      1) subject="Keymap: ${changes%%   *}" ;;
+      *) subject="Keymap: $n key changes" ;;
+    esac
+    git -C "$REPO_DIR" add -- config/ &&
+      git -C "$REPO_DIR" commit -q -m "$subject" -m "${changes:-No key changes.}" -- config/ &&
+      ok "Committed $(git -C "$REPO_DIR" log -1 --format=%h): $subject"
+  fi
+fi
+SHA=$(git -C "$REPO_DIR" log -1 --format=%h -- config/ 2>/dev/null)
+[[ -n $(git -C "$REPO_DIR" status --porcelain -- config/) ]] && SHA="${SHA:-new}-dirty"
+
+# --- 3. build
+if [[ -z $ZMK ]]; then
+  last=$(git -C "$REPO_DIR" log -1 --diff-filter=A --name-only --format= -- 'firmware/*.uf2' 2>/dev/null | head -n 1)
+  [[ $last =~ _v([0-9]+\.[0-9]+)_ ]] && ZMK="v${BASH_REMATCH[1]}"
+  ZMK=${ZMK:-v25.11}
+fi
+VERSION=${ZMK#v}
+
+if ((REBUILD_IMAGE)) || ! podman image exists "$IMAGE"; then
+  info "Building the $IMAGE container (first time only: downloads the ZMK toolchain, can take 10–30 min)"
+  podman build -t "$IMAGE" -f "$REPO_DIR/Dockerfile" "$REPO_DIR" || die "Container build failed."
+fi
+
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/go60-build.XXXXXX")
+trap 'rm -rf "$WORK"' EXIT
+cp -r "$REPO_DIR/config" "$WORK/config"
+info "Building firmware (ZMK $ZMK, keymap ${SHA:-uncommitted})"
+notify-send -a 'Go60 build' 'Go60 build' "Building firmware (ZMK $ZMK)…" 2>/dev/null
+start=$SECONDS
+# Rootless Podman: root in the container is you outside, so the output belongs to you.
+podman run --rm -v "$WORK:/config:Z" -e UID=0 -e GID=0 -e BRANCH="$ZMK" "$IMAGE" ||
+  die "Firmware build failed (see the errors above; typos in key names are the usual cause)."
+[[ -f $WORK/go60.uf2 ]] || die "The build finished but produced no go60.uf2."
+ok "Built in $((SECONDS - start)) s."
+
+mkdir -p "$REPO_DIR/build"
+uuid=$(jq -r '.uuid // "00000000-0000-0000-0000-000000000000"' "$LAYOUT")
+OUT="$REPO_DIR/build/${uuid}_v${VERSION}_keymap ${SHA:-local}.uf2"
+cp "$WORK/go60.uf2" "$OUT"
+"$TOOLS/go60-keymap" to-json -o "$REPO_DIR/build/layout.json" >/dev/null || die "Couldn't convert the keymap to layout JSON."
+ok "Firmware: build/${OUT##*/}"
+notify-send -a 'Go60 build' 'Go60 build' "Firmware built ✓" 2>/dev/null
+
+# --- 4. flash
+if ((FLASH)); then
+  echo
+  exec "$REPO_DIR/scripts/go60-flash" --layout-json "$REPO_DIR/build/layout.json" \
+    --source "keymap ${SHA:-local} (ZMK $ZMK)" "${FLASH_ARGS[@]}" "$OUT"
+fi
+info "Flash it later with: go60-flash --layout-json build/layout.json \"build/${OUT##*/}\""

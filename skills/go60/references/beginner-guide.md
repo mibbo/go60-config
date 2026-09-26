@@ -57,13 +57,16 @@ the layer key again, or use the key that returns to the base layer.
 
 ## 5. Changing the layout
 
+There are two ways. You can **ask Claude to change the text keymap** (`config/go60.keymap`, see
+`keymap-editing.md`) and then run `go60-build`, or use the web Layout Editor:
+
 1. Open the Layout Editor at my.moergo.com (Go60) and edit the layer or key.
 2. **Save and Build** downloads a `.uf2` to `~/Downloads`.
 3. Also download the layout as **JSON**, so the repo keeps a readable copy.
 4. Run `go60-flash` (or press Super+Shift+Ctrl+K). It flashes both halves, moves both files into the repo,
    and offers to commit them.
 
-When suggesting a change, describe it as editor steps: which layer, which key (in plain words plus the
+When suggesting a change for the editor, describe it as editor steps: which layer, which key (in plain words plus the
 position name), and which behavior (e.g. "Key Press → AltGr+7" for `{`). Use `references/finnish-layout.md`
 to pick the code that gives the right Finnish character.
 

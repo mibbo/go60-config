@@ -1,18 +1,20 @@
 ---
 name: go60
-description: The user's MoErgo Go60 split keyboard and its go60-config toolkit. Answers where a character, key or function is on the layout that is actually flashed (å, ö, {, @, arrows, Enter, Super, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, coaches a split-keyboard beginner, and opens a visual cheat sheet. Also guides changing the layout in the MoErgo Layout Editor, flashing with go60-flash (step by step, even after months away), fixing flash problems, rolling back, and checking the setup's state with go60-status. Use it whenever the user mentions their Go60, split or ergonomic keyboard, keyboard layers, thumb keys, "where is X on my keyboard", "how do I type X", flashing or updating keyboard firmware, the Layout Editor, or asks what their keyboard setup can do, even if they don't say "Go60".
+description: The user's MoErgo Go60 split keyboard and its go60-config toolkit. Answers where a character, key or function is on the layout that is actually flashed (å, ö, {, @, arrows, Enter, Super, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, coaches a split-keyboard beginner, and opens a visual cheat sheet. Changes keys by editing the text keymap (config/go60.keymap, built locally with go60-build) or guides changes in the MoErgo Layout Editor, then flashing with go60-flash (step by step, even after months away), fixing flash problems, rolling back, and checking the setup with go60-status. Use it whenever the user mentions their Go60, split or ergonomic keyboard, keyboard layers, thumb keys, "where is X on my keyboard", "how do I type X", swapping, remapping or adding keys, ZMK keymaps, flashing or updating keyboard firmware, the Layout Editor, or asks what their keyboard setup can do, even if they don't say "Go60".
 ---
 
 # Go60 keyboard helper
 
 The user is new to split keyboards and owns a MoErgo Go60 (ZMK firmware, 60 keys, two halves).
-They edit the layout in MoErgo's web Layout Editor and flash it with `go60-flash`. The laptop
+They change the layout either in MoErgo's web Layout Editor or as text in `config/go60.keymap`
+(built locally with `go60-build`), and flash with `go60-flash`. The laptop
 runs Omarchy (Arch + Hyprland) with the **Finnish** keyboard layout.
 
 Everything lives in the git repo `~/sync/git/go60-config`. This skill folder is `skills/go60/` inside it, and
 `~/.claude/skills/go60` is a symlink to that folder.
 
 - `layout/current.json`: the layout that was last flashed, as a Layout Editor JSON export. This is the source of truth for questions.
+- `config/go60.keymap`: the layout as an editable ZMK keymap, plus any edits not flashed yet.
 - `firmware/*.uf2`: history of flashed firmware (binary; not readable as a layout).
 - `scripts/go60-flash`: the flashing workflow (`README.md` in the repo describes it).
 
@@ -67,14 +69,27 @@ after the line (e.g. "SymbolNav on the left hand"). Then explain:
 Keep answers short. The user wants to find the key and keep typing, not read a report. For "show me
 the layer" questions, paste the `go60-keys show` output in a code block or suggest the cheat sheet.
 
-If something isn't on the layout, or is awkward to reach, say so. Then offer to explain how to add it in
-the Layout Editor (layer, key position, behavior). Don't edit `layout/current.json` to "add" keys: the
-keyboard only changes when the user rebuilds in the editor and flashes.
+If something isn't on the layout, or is awkward to reach, say so and offer to change it. Never edit
+`layout/current.json` to "add" keys: it records what's flashed, and the keyboard only changes after a build and flash.
+
+## Changing keys
+
+When the user wants to swap, add or remap keys, the default is to **edit `config/go60.keymap`**. Read
+`references/keymap-editing.md` first. It covers the file layout, bindings for Finnish characters, layers,
+and the rules that keep the file convertible. Then:
+1. Make the change.
+2. Run `go60-keymap check`.
+3. Show the changed keys as summary lines (e.g. `Base RH C3R5: å → ö`).
+4. Tell the user to run `go60-build`. It commits, builds and flashes, and flashing needs them at the keyboard.
+
+If the user prefers the web Layout Editor, describe the change as editor steps instead. Both paths are
+fully supported: after an editor flash, `go60-flash` updates the keymap to match.
 
 ## Flashing, changing the layout, and "how does this work again?"
 
-The repo is a small toolkit: flashing (`go60-flash`), layout lookup and cheat sheet (`go60-keys`), a status
-check (`go60-status`), and a git history of every flashed firmware and layout. When the user asks what it can
+The repo is a small toolkit: flashing (`go60-flash`), local builds from the text keymap (`go60-build`,
+`go60-keymap`), layout lookup and cheat sheet (`go60-keys`), a status check (`go60-status`), and a git history
+of every flashed firmware and layout. When the user asks what it can
 do, how to flash, or comes back after a break:
 
 1. Run `go60-status` first. It shows when the last flash was, which layout and firmware version are on
@@ -83,8 +98,9 @@ do, how to flash, or comes back after a break:
 2. Read `references/toolkit.md` and walk the user through the task step by step. Expect that they
    don't remember the details. For flashing, give the bootloader combos for their cable setup and
    mention the configuration reset when the firmware version changes.
-3. `go60-flash` is interactive and needs the keyboard, so let the user run it in their terminal (or
-   with Super+Shift+Ctrl+K) rather than running it yourself. `go60-flash --dry-run` is a safe rehearsal.
+3. `go60-flash` and `go60-build` are interactive and need the keyboard, so let the user run them in their
+   terminal (or `go60-flash` with Super+Shift+Ctrl+K) rather than running them yourself. `go60-flash --dry-run`
+   is a safe rehearsal, and `go60-build --no-flash` only builds.
 
 ## Reference files (read when needed)
 
@@ -94,6 +110,8 @@ do, how to flash, or comes back after a break:
 
 - `references/key-positions.md`: position names (C1–C6, R1–R5, T1–T3), fingers, and which facts are
   verified. Read it when an answer depends on exact physical placement.
+- `references/keymap-editing.md`: editing `config/go60.keymap`: the file layout, common edits, adding
+  layers, the build, switching back to the Layout Editor, and build problems. Read it before any keymap edit.
 - `references/finnish-layout.md`: what every key code types with the Finnish layout, plus dead keys and
   AltGr. Read it when explaining symbols or why a key types something unexpected.
 - `references/beginner-guide.md`: split-keyboard basics (home position, layers, thumbs, Magic key,

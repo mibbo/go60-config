@@ -1,15 +1,21 @@
 # go60-config
 
-Firmware flashing workflow and firmware history for my MoErgo Go60 split keyboard.
+Layout, firmware history and tools for my MoErgo Go60 split keyboard. I change the layout either in
+MoErgo's web Layout Editor or as text in `config/go60.keymap`, and both ways are flashed with `go60-flash`.
 
 - `scripts/go60-flash`: flashes a `.uf2` onto both halves
+- `config/go60.keymap`: the layout as an editable ZMK keymap, laid out like the keyboard with Finnish legend
+  comments. `config/` and the `Dockerfile` come from MoErgo's
+  [go60-zmk-config](https://github.com/moergo-keyboards/go60-zmk-config) template.
+- `scripts/go60-build`: builds firmware from the keymap locally (Podman), then runs `go60-flash`
 - `firmware/`: every `.uf2` I have flashed, named `<date>_v<firmware version>_<layout name>_<layout id>.uf2`
 - `layout/current.json`: the current layout as a Layout Editor JSON export. `git log -p layout/current.json`
   shows what changed between flashes.
 - `skills/go60/`: a Claude Code skill, so Claude can answer "where is å?" or "how do I get to the arrows?"
   from any folder, plus the `go60-keys` command and an interactive cheat sheet
 - `AGENTS.md` (and `CLAUDE.md`, which imports it): context for AI agents working in this repo
-- `scripts/install`: symlinks everything into place (`go60-flash`, `go60-keys` and `go60-status` in `~/.local/bin`,
+- `scripts/install`: symlinks everything into place (`go60-flash`, `go60-build`, `go60-keymap`, `go60-keys` and
+  `go60-status` in `~/.local/bin`,
   the skill in `~/.claude/skills/go60`). Run it once
   after cloning; after that, `git pull` updates everything.
 
@@ -26,12 +32,34 @@ go60-keys cheatsheet --open      # interactive cheat sheet (search, per-layer ta
 `go60-status` shows where things stand: the flashed layout and firmware (and how long ago), builds waiting in
 `~/Downloads`, unpushed commits, and whether everything is installed.
 
+## Editing the layout as text
+
+```
+go60-keymap check        # validate config/go60.keymap and list what changed since the last flash
+go60-keymap format       # re-align it and refresh the Finnish legend comments
+go60-build               # commit, build locally (Podman), then flash with go60-flash
+go60-build --no-flash    # build only; the firmware is left in build/
+go60-keymap to-json -o ~/Downloads/go60.json   # move back to the web editor (import the JSON there)
+```
+
+- Builds use the ZMK version of the currently flashed firmware (e.g. v25.11), so the firmware version only
+  changes when you ask for it with `--zmk`.
+- The first build creates the build container, which takes a while. Install Podman once with
+  `omarchy pkg add podman`.
+- After a flash from the web editor, `go60-flash` updates `config/go60.keymap` to match. It skips this if
+  the keymap has edits that were never flashed, and warns you.
+- `layout/current.json` always describes what's on the keyboard, whichever way it was made.
+
+The full guide (file layout, common edits, adding layers, problems) is in
+`skills/go60/references/keymap-editing.md`. Or just ask Claude: "swap å and ö".
+
 ## Ask Claude
 
 The `go60` skill works in any Claude Code session. It uses the layout that is actually flashed and knows
 this whole toolkit. For example:
 
 - "missä on å?" / "how do I type { on my Go60?" / "how do I do Super + →?"
+- "swap å and ö" / "put { and } on the SymbolNav layer where ( and ) are" (edits the keymap; then run `go60-build`)
 - "open the Go60 cheat sheet"
 - "I haven't flashed in months, walk me through changing a key and flashing"
 - "only the left half got flashed, what now?" / "roll back to my previous layout"
@@ -100,10 +128,8 @@ go60-flash [options] [file.uf2]
   --no-notify, --hold, --help
 ```
 
-## Later: text keymap
+## Repo layout and MoErgo's template
 
-The plan is to switch to MoErgo's official
-[go60-zmk-config](https://github.com/moergo-keyboards/go60-zmk-config) template and keep the keymap
-here as ZMK source, building the firmware locally or with GitHub Actions. This repo only uses `scripts/`,
-`firmware/`, `layout/` and `skills/`, so MoErgo's files (`config/`, `.github/`, build scripts) can be added at the top level
-without conflicts. Only this README would need merging.
+The repo follows MoErgo's `go60-zmk-config` template: `config/` and `Dockerfile` are at the top level, the
+same as in the template. Builds are local only, so MoErgo's GitHub Actions workflow is not included. Our own
+files live in `scripts/`, `skills/`, `firmware/` and `layout/`.

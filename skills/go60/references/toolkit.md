@@ -20,7 +20,9 @@ whether the tools are installed.
 | Find a key or character, learn the layers | Ask Claude (this skill), or `go60-keys find/key/layers/show` |
 | Visual cheat sheet | `go60-keys cheatsheet --open` (updated automatically after each flash) |
 | See the state of the setup | `go60-status` |
-| Flash a new layout | Layout Editor → Save and Build and download JSON → `go60-flash` (or Super+Shift+Ctrl+K) |
+| Flash a new layout (web) | Layout Editor → Save and Build and download JSON → `go60-flash` (or Super+Shift+Ctrl+K) |
+| Change keys as text | edit `config/go60.keymap` → `go60-keymap check` → `go60-build` (builds with Podman, then runs `go60-flash`); see `keymap-editing.md` |
+| Move a keymap back to the web editor | `go60-keymap to-json -o ~/Downloads/go60.json`, then import it in the editor |
 | Retry one half, re-flash, roll back | `go60-flash --right-only` / `--left-only` / `--latest` / `go60-flash firmware/<file>.uf2` |
 | Layout history | `git log -p layout/current.json`; firmware history in `firmware/` |
 | Rehearse flashing without the keyboard | `go60-flash --dry-run` (changes nothing) |
@@ -29,6 +31,9 @@ whether the tools are installed.
 `go60-flash --help` lists all flashing options. Check it rather than relying on memory.
 
 ## 2. Changing the layout and flashing
+
+For the **text path** (edit `config/go60.keymap`, then `go60-build`), see `keymap-editing.md`. `go60-build`
+ends by running `go60-flash`, so steps 5–7 below apply to it too. The **web editor path**:
 
 1. **Edit** in the MoErgo Layout Editor (my.moergo.com → Go60). For symbols, use
    `references/finnish-layout.md` to pick the combination that types the right character on a Finnish system.
@@ -80,8 +85,11 @@ whether the tools are installed.
 
 - Repo: `~/sync/git/go60-config` (GitHub: private repo `go60-config`). The human-oriented overview is
   its `README.md`.
-- Commands (symlinked into `~/.local/bin` by `scripts/install`): `go60-flash`, `go60-keys`, `go60-status`.
+- Commands (symlinked into `~/.local/bin` by `scripts/install`): `go60-flash`, `go60-build`, `go60-keymap`,
+  `go60-keys`, `go60-status`. `go60-build` needs Podman (`omarchy pkg add podman`).
+- Text keymap: `config/go60.keymap`. MoErgo's build files are `config/default.nix`, `go60.conf`,
+  `info.json` and the top-level `Dockerfile`. Build output goes in `build/` (not committed).
 - Skill: `~/.claude/skills/go60`, a symlink to `skills/go60/` in the repo, so edits there apply immediately.
 - Cheat sheet file: `~/.cache/go60/cheatsheet.html`.
-- Future plan: move to MoErgo's `go60-zmk-config` (keymap as ZMK source under `config/`, built locally or
-  with GitHub Actions). The repo layout already leaves room for it.
+- The repo follows MoErgo's `go60-zmk-config` template (keymap under `config/`). Builds are local only;
+  MoErgo's GitHub Actions workflow is deliberately not included.
