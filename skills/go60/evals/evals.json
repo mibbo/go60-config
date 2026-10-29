@@ -48,6 +48,12 @@
       "prompt": "go60-flash said my keymap was NOT updated to the editor layout, what do I do?",
       "expected_output": "Explains that the keymap had unflashed edits, suggests go60-keymap merge (keeps keymap edits on top of the flashed editor layout) and shows what it would keep (go60-keymap merge --dry-run), alternative go60-keymap init --force to drop them; then go60-build to flash.",
       "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "can I make my go60 light up with a different colour for each finger while I learn? and switch back to the rainbow after",
+      "expected_output": "Explains per-key presets: go60-leds edit opens the colour editor (a Fingers preset already exists), save, then go60-build to flash. On the keyboard, Magic (LH C6R4) + LH C1R3 steps through effects: Swirl (rainbow) and then the presets. Mentions brightness keys dim presets, and that Layout Editor flashes drop presets. Reads references/leds.md.",
+      "files": []
     }
   ]
 }

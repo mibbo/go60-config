@@ -82,6 +82,22 @@ def position_words(i):
     return ", ".join(parts)
 
 
+# Key index -> LED number on its half (each half has a chain of 30 per-key LEDs).
+# Left half: from the LED map in MoErgo's go60_lh.dts. Each column runs top to bottom from C1 (LEDs 3-6)
+# to C6 (26-29), with the R5 key after R4 in C2-C4, and the thumbs are 0-2. The right half is assumed to be
+# wired as a mirror image (its .dts has no map), and T1-T3 = 0-2 is read from the drawing; both unverified.
+LED_COLUMNS = {1: (3, 4, 5, 6), 2: (7, 8, 9, 10, 11), 3: (12, 13, 14, 15, 16), 4: (17, 18, 19, 20, 21),
+               5: (22, 23, 24, 25), 6: (26, 27, 28, 29)}
+LED_THUMBS = {1: 0, 2: 1, 3: 2}
+LEDS_PER_HALF = 30
+
+
+def led_index(i):
+    """(side, LED number on that half) for key index i."""
+    side, kind, n, row = POSITIONS[i]
+    return side, LED_THUMBS[n] if kind == "T" else LED_COLUMNS[n][row - 1]
+
+
 def parse_position(text):
     """Accept an index (0-59) or a name like 'LH T1', 'rh-c3r2', 'RHC6R4'."""
     t = text.strip().upper().replace("-", "").replace("_", "").replace(" ", "")

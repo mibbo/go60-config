@@ -8,14 +8,16 @@ MoErgo's web Layout Editor or as text in `config/go60.keymap`, and both ways are
   comments. `config/` and the `Dockerfile` come from MoErgo's
   [go60-zmk-config](https://github.com/moergo-keyboards/go60-zmk-config) template.
 - `scripts/go60-build`: builds firmware from the keymap locally (Podman), then runs `go60-flash`
+- `config/led-presets.json`: per-key LED colour presets, edited with `go60-leds edit` and built in by `go60-build`
+  through `config/patches/rgb-presets.patch` (see Lights below)
 - `firmware/`: every `.uf2` I have flashed, named `<date>_v<firmware version>_<layout name>_<layout id>.uf2`
 - `layout/current.json`: the current layout as a Layout Editor JSON export. `git log -p layout/current.json`
   shows what changed between flashes.
 - `skills/go60/`: a Claude Code skill, so Claude can answer "where is å?" or "how do I get to the arrows?"
   from any folder, plus the `go60-keys` command and an interactive cheat sheet
 - `AGENTS.md` (and `CLAUDE.md`, which imports it): context for AI agents working in this repo
-- `scripts/install`: symlinks everything into place (`go60-flash`, `go60-build`, `go60-keymap`, `go60-keys` and
-  `go60-status` in `~/.local/bin`,
+- `scripts/install`: symlinks everything into place (`go60-flash`, `go60-build`, `go60-keymap`, `go60-keys`,
+  `go60-leds` and `go60-status` in `~/.local/bin`,
   the skill in `~/.claude/skills/go60`). Run it once
   after cloning; after that, `git pull` updates everything.
 
@@ -58,6 +60,20 @@ go60-keymap merge        # after an editor flash: keep your unflashed keymap edi
 The full guide (file layout, common edits, adding layers, problems) is in
 `skills/go60/references/keymap-editing.md`. Or just ask Claude: "swap å and ö".
 
+## Lights
+
+Hold Magic and tap the left-hand top/home row keys for on/off, effect, brightness, hue, saturation and speed.
+Per-key colour presets (e.g. one colour per finger while learning) are extra effects after MoErgo's four:
+
+```
+go60-leds edit           # colour editor in the browser: paint keys, fill by finger, save to config/led-presets.json
+go60-leds list           # effect numbers; Magic + LH C1R3 steps to the next effect on the keyboard
+go60-build               # build the presets in and flash
+```
+
+Presets only exist in firmware from `go60-build`; a Layout Editor flash drops them until the next build.
+Details: `skills/go60/references/leds.md`.
+
 ## Ask Claude
 
 The `go60` skill works in any Claude Code session. It uses the layout that is actually flashed and knows
@@ -65,7 +81,7 @@ this whole toolkit. For example:
 
 - "missä on å?" / "how do I type { on my Go60?" / "how do I do Super + →?"
 - "swap å and ö" / "put { and } on the SymbolNav layer where ( and ) are" (edits the keymap; then run `go60-build`)
-- "open the Go60 cheat sheet"
+- "open the Go60 cheat sheet" / "make my keys light up in one colour per finger"
 - "I haven't flashed in months, walk me through changing a key and flashing"
 - "only the left half got flashed, what now?" / "roll back to my previous layout"
 - "what can my go60-config repo do?"

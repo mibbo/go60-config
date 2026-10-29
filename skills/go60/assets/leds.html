@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Go60 Lights</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --ground: #eceef1;
+  --plate: #d9dee4;
+  --plate-edge: #c6ccd4;
+  --cap-edge: #c9cfd7;
+  --ink: #1b2129;
+  --muted: #5d6877;
+  --faint: #9aa4b1;
+  --accent: #0e7680;
+  --focus: #0e7680;
+  --warn: #9a5b00;
+  --ok: #1d7a3a;
+  --panel: #ffffff;
+  --u: 56px;
+  --sans: "Atkinson Hyperlegible", "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #121519; --plate: #0c0e11; --plate-edge: #2a313a; --cap-edge: #37404b;
+    --ink: #e6eaf0; --muted: #9aa5b3; --faint: #5f6a78; --accent: #4fc2c9; --focus: #4fc2c9;
+    --warn: #f1c07a; --ok: #7fd69a; --panel: #1b2027;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #121519; --plate: #0c0e11; --plate-edge: #2a313a; --cap-edge: #37404b;
+  --ink: #e6eaf0; --muted: #9aa5b3; --faint: #5f6a78; --accent: #4fc2c9; --focus: #4fc2c9;
+  --warn: #f1c07a; --ok: #7fd69a; --panel: #1b2027;
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); }
+body {
+  margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.5 var(--sans);
+  padding-inline: 16px; padding-block: 20px 48px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+h1 { margin: 0; font-size: 1.6rem; line-height: 1.2; }
+.meta { color: var(--muted); font-size: .9rem; }
+code { font-family: var(--mono); font-size: .82rem; }
+button, input, select { font: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn {
+  padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 700;
+  border: 1px solid var(--cap-edge); background: var(--panel); color: var(--ink);
+}
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.btn.small { padding: 4px 10px; font-size: .85rem; font-weight: 400; }
+.save { display: flex; gap: 10px; align-items: center; }
+#status { font-size: .9rem; color: var(--muted); }
+#status.dirty { color: var(--warn); }
+#status.ok { color: var(--ok); }
+#status.err { color: #c62828; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tab {
+  font-weight: 700; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--cap-edge); background: var(--panel); color: var(--ink);
+  display: inline-flex; gap: 8px; align-items: center;
+}
+.tab small { font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: .75rem; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.tab[aria-selected="true"] small { color: var(--ground); opacity: .7; }
+.tab.add { font-weight: 400; border-style: dashed; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.actions .name { font-weight: 700; margin-right: 6px; }
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+  background: var(--panel); border: 1px solid var(--cap-edge); border-radius: 14px; padding: 10px 14px;
+}
+.group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.group > .lbl { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.swatch {
+  width: 28px; height: 28px; border-radius: 7px; cursor: pointer; padding: 0;
+  border: 1px solid var(--cap-edge);
+}
+.swatch.off { background: repeating-linear-gradient(45deg, #222 0 4px, #444 4px 8px); }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+#color { width: 44px; height: 32px; padding: 0; border: 1px solid var(--cap-edge); border-radius: 7px; background: none; cursor: pointer; }
+#hex { width: 6.5em; font-family: var(--mono); font-size: .85rem; padding: 5px 8px; border-radius: 7px;
+  border: 1px solid var(--cap-edge); background: var(--panel); color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--cap-edge); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); color: var(--ink); padding: 4px 10px; cursor: pointer; font-size: .85rem; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+input[type=range] { width: 120px; accent-color: var(--accent); }
+.board-scroll { overflow-x: auto; padding-block: 4px 8px; }
+.board {
+  display: flex; gap: calc(var(--u) * 0.9); justify-content: center; min-width: max-content;
+  padding: 18px 22px 12px; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 22px;
+  user-select: none; touch-action: none;
+}
+.half { position: relative; width: calc(var(--u) * 6.35); height: calc(var(--u) * 6.75); }
+.half-name {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--u) * -0.1); text-align: center;
+  font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+.key {
+  position: absolute; width: calc(var(--u) - 6px); height: calc(var(--u) - 6px);
+  border-radius: 9px; border: 1px solid rgba(0,0,0,.25); border-bottom-width: 3px;
+  font: inherit; cursor: crosshair; padding: 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; overflow: hidden;
+}
+.key.wide { width: calc(var(--u) * 1.5 - 6px); }
+.key .lab { font-weight: 700; font-size: .95rem; line-height: 1.1; text-align: center; }
+.key .lab.long { font-size: .62rem; }
+.key .lab.mid { font-size: .78rem; }
+.key .sub { font-family: var(--mono); font-size: .52rem; opacity: .7; }
+.key.off { background: #1a1d22 !important; color: #6c7684 !important; border-style: dashed; border-color: #49515c; }
+.key:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; z-index: 2; }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.panel { background: var(--panel); border: 1px solid var(--cap-edge); border-radius: 14px; padding: 14px 16px; }
+.panel h2 { margin: 0 0 6px; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.panel p { margin: 4px 0; }
+ol.effects { margin: 4px 0; padding-left: 0; list-style: none; display: grid; gap: 3px; }
+ol.effects li { display: flex; gap: 8px; align-items: center; }
+ol.effects .n { font-family: var(--mono); font-size: .78rem; color: var(--muted); width: 1.5em; text-align: right; }
+ol.effects .mini { display: inline-flex; gap: 1px; }
+ol.effects .mini i { width: 6px; height: 12px; border-radius: 1px; display: inline-block; }
+ol.effects li.cur { font-weight: 700; }
+kbd { font-family: var(--mono); font-size: .78rem; border: 1px solid var(--cap-edge); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+.empty { padding: 30px; text-align: center; color: var(--muted); }
+@media (max-width: 700px) { :root { --u: 44px; } .key .lab { font-size: .8rem; } .key .sub { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Go60 Lights</h1>
+      <div class="meta">Per-key colour presets · saved to <code id="file"></code></div>
+    </div>
+    <div class="save">
+      <span id="status" aria-live="polite"></span>
+      <button type="button" class="btn primary" id="save" title="Ctrl+S">Save</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Presets"></nav>
+  <div class="actions" id="actions"></div>
+
+  <div class="toolbar" id="toolbar">
+    <div class="group">
+      <span class="lbl">Colour</span>
+      <input type="color" id="color" aria-label="Pick any colour">
+      <input type="text" id="hex" aria-label="Colour as hex" spellcheck="false" maxlength="7">
+      <span id="palette" class="group"></span>
+    </div>
+    <div class="group">
+      <span class="lbl">Fill</span>
+      <span class="seg" id="side" role="group" aria-label="Which hand to fill">
+        <button type="button" data-s="B" aria-pressed="true">Both</button>
+        <button type="button" data-s="L" aria-pressed="false">Left</button>
+        <button type="button" data-s="R" aria-pressed="false">Right</button>
+      </span>
+      <span id="fills" class="group"></span>
+    </div>
+    <div class="group">
+      <span class="lbl">Preview</span>
+      <label class="meta" for="bright">brightness</label>
+      <input type="range" id="bright" min="10" max="100" value="100">
+    </div>
+  </div>
+
+  <div class="board-scroll"><div class="board" id="board"></div></div>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Painting</h2>
+      <p>Click a key, or drag across keys, to paint it with the current colour. <b>Right-click</b> a key
+        to pick up its colour. The striped swatch turns a key's light off.</p>
+      <p class="meta"><kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>Ctrl</kbd>+<kbd>S</kbd> save ·
+        letters show your base layer so you can find your way.</p>
+    </section>
+    <section class="panel">
+      <h2>On the keyboard</h2>
+      <p>After saving, run <code>go60-build</code> to put the presets on the keyboard. They come after
+        MoErgo's effects; hold <b>Magic</b> (LH C6R4) and tap <b>LH C1R3</b> to step to the next one:</p>
+      <ol class="effects" id="effects"></ol>
+      <p class="meta">Brightness keys (Magic + LH C2R2 / C2R3) dim presets too; the colour and
+        saturation keys only affect MoErgo's effects.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+const DATA = /*__GO60_DATA__*/null;
+const TOKEN = "__GO60_TOKEN__";
+
+// Same schematic geometry as the cheat sheet.
+const STAGGER = {6: .55, 5: .55, 4: .2, 3: 0, 2: .15, 1: .3};
+const THUMBS = {3: [2.75, 5.15, 6, 1.5], 2: [4.35, 5.3, 14, 1], 1: [5.4, 5.62, 24, 1]};
+function geom(pos) {
+  const [side, kind, n, row] = pos;
+  let x, y, rot = 0, w = 1;
+  if (kind === "T") { [x, y, rot, w] = THUMBS[n]; }
+  else { x = 6 - n; y = row - 1 + STAGGER[n]; }
+  if (side === "R") { x = 6.35 - x - w; rot = -rot; }
+  return {x, y, rot, w};
+}
+
+const PALETTE = ["#ff3b30", "#ff8a00", "#ffb000", "#ffe600", "#34c759", "#00c7a3", "#00b8ff",
+                 "#2f7bff", "#5b4dff", "#b04dff", "#ff4fa3", "#ffffff"];
+const OFF = "#000000";
+const FILLS = [
+  ["Pinkies", (p) => p[1] === "C" && p[2] >= 5],
+  ["Ring", (p) => p[1] === "C" && p[2] === 4],
+  ["Middle", (p) => p[1] === "C" && p[2] === 3],
+  ["Index", (p) => p[1] === "C" && p[2] <= 2],
+  ["Thumbs", (p) => p[1] === "T"],
+  ["All", () => true],
+];
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const clone = (x) => JSON.parse(JSON.stringify(x));
+
+let presets = clone(DATA.presets);
+let saved = JSON.stringify(presets);
+let current = 0, color = PALETTE[0], side = "B", bright = 100;
+let undo = [];
+let painting = false, stroke = null;
+try { const c = localStorage.getItem("go60-leds-color"); if (/^#[0-9a-f]{6}$/.test(c)) color = c; } catch (e) {}
+
+const dirty = () => JSON.stringify(presets) !== saved;
+function setStatus(text, cls) { const s = $("#status"); s.textContent = text; s.className = cls || ""; }
+function refreshStatus() { dirty() ? setStatus("Unsaved changes", "dirty") : setStatus(""); }
+
+function scaled(hex) {
+  const n = parseInt(hex.slice(1), 16), f = bright / 100;
+  const r = Math.round((n >> 16 & 255) * f), g = Math.round((n >> 8 & 255) * f), b = Math.round((n & 255) * f);
+  return [r, g, b];
+}
+function css(hex) { const [r, g, b] = scaled(hex); return `rgb(${r},${g},${b})`; }
+function inkFor(hex) {
+  const [r, g, b] = scaled(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? "#111" : "#fff";
+}
+const sizeClass = (s) => { const n = [...(s || "")].length; return n > 6 ? "long" : n > 3 ? "mid" : ""; };
+
+function pushUndo() { undo.push(clone(presets)); if (undo.length > 100) undo.shift(); }
+
+function newPreset(name) {
+  const keys = {}; for (const k of DATA.keys) keys[k.pos] = OFF;
+  return {name, keys};
+}
+function uniqueName(base) {
+  const names = new Set(presets.map((p) => p.name.toLowerCase()));
+  if (!names.has(base.toLowerCase())) return base;
+  for (let n = 2; ; n++) if (!names.has(`${base} ${n}`.toLowerCase())) return `${base} ${n}`;
+}
+
+function renderTabs() {
+  const tabs = presets.map((p, n) =>
+    `<button type="button" class="tab" role="tab" aria-selected="${n === current}" data-n="${n}">` +
+    `${esc(p.name)} <small>${DATA.stock.length + n}</small></button>`).join("");
+  const add = presets.length < DATA.max ? `<button type="button" class="tab add" id="add">+ New preset</button>` : "";
+  $("#tabs").innerHTML = tabs + add;
+}
+
+function renderActions() {
+  const p = presets[current];
+  if (!p) { $("#actions").innerHTML = ""; return; }
+  $("#actions").innerHTML = `<span class="name">${esc(p.name)}</span>
+    <button type="button" class="btn small" data-a="rename">Rename</button>
+    <button type="button" class="btn small" data-a="dup"${presets.length >= DATA.max ? " disabled" : ""}>Duplicate</button>
+    <button type="button" class="btn small" data-a="left"${current === 0 ? " disabled" : ""} aria-label="Move earlier">◀ Earlier</button>
+    <button type="button" class="btn small" data-a="right"${current === presets.length - 1 ? " disabled" : ""} aria-label="Move later">Later ▶</button>
+    <button type="button" class="btn small" data-a="del">Delete</button>`;
+}
+
+function keyStyle(k, hex) {
+  const g = geom(k.p);
+  const pos = `left:calc(var(--u)*${g.x});top:calc(var(--u)*${g.y});transform:rotate(${g.rot}deg)`;
+  return hex === OFF ? pos : `${pos};background:${css(hex)};color:${inkFor(hex)}`;
+}
+
+function renderBoard() {
+  const p = presets[current];
+  if (!p) {
+    $("#board").innerHTML = `<div class="empty">No presets yet. Press <b>+ New preset</b> to make one.</div>`;
+    return;
+  }
+  const halves = {L: [], R: []};
+  for (const k of DATA.keys) {
+    const hex = p.keys[k.pos] || OFF, g = geom(k.p);
+    const label = k.label || "";
+    halves[k.p[0]].push(`<button type="button" class="key${g.w > 1 ? " wide" : ""}${hex === OFF ? " off" : ""}" data-i="${k.i}"` +
+      ` style="${keyStyle(k, hex)}" title="${esc(k.pos)} (${esc(k.where)}): ${hex === OFF ? "off" : hex}">` +
+      `<span class="lab ${sizeClass(label)}">${esc(label)}</span><span class="sub">${esc(k.pos.slice(3))}</span></button>`);
+  }
+  $("#board").innerHTML = `<div class="half">${halves.L.join("")}<span class="half-name">Left half</span></div>` +
+    `<div class="half">${halves.R.join("")}<span class="half-name">Right half</span></div>`;
+}
+
+function updateKey(i) {
+  const el = document.querySelector(`#board .key[data-i="${i}"]`), k = DATA.keys[i];
+  const hex = presets[current].keys[k.pos];
+  el.setAttribute("style", keyStyle(k, hex));
+  el.classList.toggle("off", hex === OFF);
+  el.title = `${k.pos} (${k.where}): ${hex === OFF ? "off" : hex}`;
+}
+
+function renderEffects() {
+  const rows = DATA.stock.map((s, n) => `<li><span class="n">${n}</span>${esc(s)} <span class="meta">(MoErgo)</span></li>`);
+  presets.forEach((p, n) => {
+    const order = DATA.keys.filter((k) => k.p[1] === "C" && k.p[3] === 3 && k.p[0] === "L").map((k) => p.keys[k.pos]);
+    const mini = order.map((h) => `<i style="background:${h === OFF ? "transparent" : h}"></i>`).join("");
+    rows.push(`<li class="${n === current ? "cur" : ""}"><span class="n">${DATA.stock.length + n}</span>` +
+      `${esc(p.name)} <span class="mini" aria-hidden="true">${mini}</span></li>`);
+  });
+  $("#effects").innerHTML = rows.join("");
+}
+
+function renderPalette() {
+  $("#palette").innerHTML = PALETTE.map((h) =>
+    `<button type="button" class="swatch" data-c="${h}" style="background:${h}" aria-label="${h}" aria-pressed="${h === color}"></button>`).join("") +
+    `<button type="button" class="swatch off" data-c="${OFF}" aria-label="Light off" title="Light off" aria-pressed="${color === OFF}"></button>`;
+  $("#color").value = color === OFF ? "#000000" : color;
+  $("#hex").value = color;
+}
+
+function render() {
+  renderTabs(); renderActions(); renderBoard(); renderEffects(); refreshStatus();
+}
+
+function setColor(c) {
+  color = c.toLowerCase();
+  try { localStorage.setItem("go60-leds-color", color); } catch (e) {}
+  renderPalette();
+}
+
+function paint(i) {
+  const p = presets[current], k = DATA.keys[i];
+  if (!p || p.keys[k.pos] === color) return;
+  if (!stroke) { pushUndo(); stroke = true; }
+  p.keys[k.pos] = color;
+  updateKey(i);
+}
+
+function fill(test) {
+  const p = presets[current]; if (!p) return;
+  pushUndo();
+  for (const k of DATA.keys) if ((side === "B" || k.p[0] === side) && test(k.p)) p.keys[k.pos] = color;
+  renderBoard(); renderEffects(); refreshStatus();
+}
+
+async function save() {
+  setStatus("Saving…");
+  try {
+    const r = await fetch("/api/presets", {method: "POST", headers: {"Content-Type": "application/json", "X-Go60-Token": TOKEN},
+      body: JSON.stringify({presets})});
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok) { setStatus(`Not saved: ${res.error || r.status}`, "err"); return; }
+    saved = JSON.stringify(presets);
+    setStatus("Saved ✓ Run go60-build to put it on the keyboard.", "ok");
+  } catch (e) {
+    setStatus("Not saved: the editor server isn't running (start it with go60-leds edit).", "err");
+  }
+}
+
+function init() {
+  $("#file").textContent = DATA.file;
+  $("#fills").innerHTML = FILLS.map(([name], n) => `<button type="button" class="btn small" data-f="${n}">${name}</button>`).join("");
+  renderPalette(); render();
+
+  $("#tabs").addEventListener("click", (e) => {
+    if (e.target.closest("#add")) {
+      pushUndo(); presets.push(newPreset(uniqueName("New preset"))); current = presets.length - 1; render(); return;
+    }
+    const t = e.target.closest(".tab"); if (!t) return;
+    current = +t.dataset.n; render();
+  });
+  $("#actions").addEventListener("click", (e) => {
+    const a = e.target.closest("[data-a]")?.dataset.a; if (!a) return;
+    const p = presets[current];
+    if (a === "rename") {
+      const name = (prompt("Name for this preset:", p.name) || "").trim();
+      if (!name || name === p.name) return;
+      if (presets.some((q, n) => n !== current && q.name.toLowerCase() === name.toLowerCase())) { alert(`There is already a preset called “${name}”.`); return; }
+      pushUndo(); p.name = name;
+    } else if (a === "dup") {
+      pushUndo(); presets.splice(current + 1, 0, {name: uniqueName(`${p.name} copy`), keys: clone(p.keys)}); current++;
+    } else if (a === "left" || a === "right") {
+      const to = current + (a === "left" ? -1 : 1);
+      pushUndo(); [presets[current], presets[to]] = [presets[to], presets[current]]; current = to;
+    } else if (a === "del") {
+      if (!confirm(`Delete the preset “${p.name}”? (Ctrl+Z undoes it until you leave the page.)`)) return;
+      pushUndo(); presets.splice(current, 1); current = Math.max(0, Math.min(current, presets.length - 1));
+    }
+    render();
+  });
+
+  $("#palette").addEventListener("click", (e) => { const s = e.target.closest(".swatch"); if (s) setColor(s.dataset.c); });
+  $("#color").addEventListener("input", (e) => setColor(e.target.value));
+  $("#hex").addEventListener("change", (e) => {
+    let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v;
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) setColor(v); else e.target.value = color;
+  });
+  $("#side").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    side = b.dataset.s;
+    for (const x of document.querySelectorAll("#side button")) x.setAttribute("aria-pressed", x === b);
+  });
+  $("#fills").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (b) fill(FILLS[+b.dataset.f][1]); });
+  $("#bright").addEventListener("input", (e) => { bright = +e.target.value; renderBoard(); });
+
+  const board = $("#board");
+  board.addEventListener("contextmenu", (e) => {
+    const k = e.target.closest(".key"); if (!k) return;
+    e.preventDefault(); setColor(presets[current].keys[DATA.keys[+k.dataset.i].pos]);
+  });
+  board.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const k = e.target.closest(".key"); if (!k) return;
+    painting = true; stroke = null; paint(+k.dataset.i);
+  });
+  board.addEventListener("pointermove", (e) => {
+    if (!painting) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest(".key");
+    if (el) paint(+el.dataset.i);
+  });
+  const end = () => { if (painting) { painting = false; stroke = null; renderEffects(); refreshStatus(); } };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+  board.addEventListener("keydown", (e) => {
+    const k = e.target.closest(".key");
+    if (k && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); stroke = null; paint(+k.dataset.i); stroke = null; renderEffects(); refreshStatus(); }
+  });
+
+  $("#save").addEventListener("click", save);
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.target.matches("input")) {
+      e.preventDefault();
+      if (undo.length) { presets = undo.pop(); current = Math.min(current, Math.max(0, presets.length - 1)); render(); }
+    }
+  });
+  window.addEventListener("beforeunload", (e) => { if (dirty()) { e.preventDefault(); e.returnValue = ""; } });
+}
+init();
+</script>
+</body>
+</html>

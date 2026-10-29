@@ -620,6 +620,13 @@ if [[ -n $LAYOUT_JSON && -f $LAYOUT_FILE ]]; then
     say "    ${DIM}No key changes compared to what's on the keyboard.$RST"
   fi
 fi
+# Per-key LED presets only exist in firmware built locally by go60-build.
+if [[ $SOURCE_DESC == "Layout Editor" && -f $REPO_DIR/config/led-presets.json ]] &&
+   [[ $("$REPO_DIR/skills/go60/scripts/go60-leds" names 2>/dev/null) != "(none)" ]]; then
+  say
+  warn "Layout Editor firmware doesn't include your LED presets ($("$REPO_DIR/skills/go60/scripts/go60-leds" names))."
+  warn "They come back with the next go60-build."
+fi
 say
 ask "Flash this firmware?" y || exit 0
 

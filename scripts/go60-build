@@ -32,6 +32,7 @@ Usage: go60-build [options] [-- go60-flash options]
 Build firmware from config/go60.keymap and flash it with go60-flash.
 
   1. checks the keymap (go60-keymap check) and shows what changed since the last flash
+     (LED colour presets from config/led-presets.json are built in too; see go60-leds)
   2. offers to commit the keymap, so the firmware name records its git commit
   3. builds with MoErgo's ZMK container in Podman (the first build downloads the
      toolchain and takes a while; later builds take a minute or two)
@@ -109,7 +110,11 @@ if [[ -n $(git -C "$REPO_DIR" status --porcelain -- config/) ]]; then
     changes=$("$TOOLS/go60-keymap" check 2>/dev/null | sed -n 's/^  //p' | tr -s ' ')
     n=$(grep -c . <<<"$changes")
     case $n in
-      0) subject="Keymap: formatting or config changes" ;;
+      0) if [[ -n $(git -C "$REPO_DIR" status --porcelain -- config/led-presets.json) ]]; then
+           subject="LED presets: $("$TOOLS/go60-leds" names)"
+         else
+           subject="Keymap: formatting or config changes"
+         fi ;;
       1) subject="Keymap: ${changes%%   *}" ;;
       *) subject="Keymap: $n key changes" ;;
     esac
@@ -136,6 +141,11 @@ fi
 
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/go60-build.XXXXXX")
 cp -r "$REPO_DIR/config" "$WORK/config"
+# Per-key LED presets (config/led-presets.json) become extra lighting effects; see go60-leds.
+if [[ -f $REPO_DIR/config/led-presets.json ]]; then
+  "$TOOLS/go60-leds" header -o "$WORK/config/led_presets.h" || die "config/led-presets.json has a problem (see above)."
+  info "LED presets: $("$TOOLS/go60-leds" names)"
+fi
 info "Building firmware (ZMK $ZMK, keymap ${SHA:-uncommitted})"
 notify-send -a 'Go60 build' 'Go60 build' "Building firmware (ZMK $ZMK)…" 2>/dev/null
 start=$SECONDS

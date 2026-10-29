@@ -43,6 +43,11 @@ thumbs resting on the thumb cluster.
 | 54, 55, 56 | LH T1, LH T2, LH T3 |
 | 57, 58, 59 | RH T3, RH T2, RH T1 |
 
+## LEDs
+
+Each half has 30 per-key LEDs. Which LED sits under which key is `LED_COLUMNS` / `LED_THUMBS` in
+`scripts/keymap.py`; `references/leds.md` says what is verified.
+
 ## How this was verified
 
 - Rows 0–47 are 6 left + 6 right keys. This matches the factory Base layer (`= 1 2 3 4 5 │ 6 7 8 9 0 -`,

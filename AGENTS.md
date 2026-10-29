@@ -13,9 +13,10 @@ Omarchy (Arch + Hyprland) with the Finnish keyboard layout (`fi`). The user is n
 | `firmware/*.uf2` | Every flashed firmware, named `<flash date>_v<firmware version>_<layout name>_<layout id>.uf2`. Binary: don't try to read keymaps from them, and don't edit or rewrite them. |
 | `config/go60.keymap` | The layout as an editable ZMK keymap (generated grid + Finnish legend comments). `config/*` other files and `Dockerfile` are from MoErgo's go60-zmk-config template (commit 8ccc854; the Dockerfile is patched for Podman: fully qualified base image and a quoted entrypoint heredoc); `build/` is build output (ignored). |
 | `scripts/go60-build` | Checks the keymap, commits it, builds with Podman (ZMK version = currently flashed one), then runs `go60-flash --layout-json … --source …`. |
+| `config/led-presets.json` | Per-key LED colour presets (edited with `go60-leds edit`). `go60-build` turns them into `led_presets.h`, and `config/default.nix` applies `config/patches/rgb-presets.patch` (adds one lighting effect per preset to MoErgo's ZMK). See `skills/go60/references/leds.md`. |
 | `scripts/go60-flash` | Flashing workflow (see `README.md`). Interactive; without the keyboard, only run it with `--dry-run`. |
-| `scripts/install` | Symlinks `go60-flash`, `go60-build`, `go60-keymap`, `go60-keys` and `go60-status` into `~/.local/bin` and the skill into `~/.claude/skills/go60`. |
-| `skills/go60/` | The `go60` Claude skill: `SKILL.md`, tools in `scripts/` (`go60-keys`, `go60-keymap`, `go60-status`; `keymap.py` = positions and Finnish legends, `zmk_keymap.py` = JSON ↔ keymap converter), the cheat sheet template (`assets/`), and reference docs (`references/`). |
+| `scripts/install` | Symlinks `go60-flash`, `go60-build`, `go60-keymap`, `go60-keys`, `go60-leds` and `go60-status` into `~/.local/bin` and the skill into `~/.claude/skills/go60`. |
+| `skills/go60/` | The `go60` Claude skill: `SKILL.md`, tools in `scripts/` (`go60-keys`, `go60-keymap`, `go60-leds`, `go60-status`; `keymap.py` = positions and Finnish legends, `zmk_keymap.py` = JSON ↔ keymap converter), the cheat sheet and LED editor templates (`assets/`), and reference docs (`references/`). |
 
 ## Answering layout questions
 
@@ -37,6 +38,7 @@ must update the docs in the same commit**, without being asked. Before committin
 | `go60-keys` or `go60-status` (commands, output) | `README.md` (Layout help), `skills/go60/SKILL.md` (commands it tells Claude to run), `references/toolkit.md` |
 | `keymap.py` (positions, Finnish legends, behaviors) | `references/key-positions.md` or `references/finnish-layout.md` |
 | `zmk_keymap.py`, `go60-keymap` or `go60-build` (keymap format, conversion, build) | `references/keymap-editing.md`, the keymap header comment in `zmk_keymap.py`, `README.md` (Editing the layout as text); run the round-trip check below |
+| `go60-leds`, the LED editor (`assets/leds.html`), the LED patch or `LED_*` in `keymap.py` | `references/leds.md`, `README.md` (Lights) |
 | the cheat sheet (`assets/cheatsheet.html`) | the cheat sheet lines in `README.md` and `references/toolkit.md`, if what it does changed |
 | a new script, command or file type | `scripts/install` (if it goes on PATH), the file tables in `README.md` and this file, `references/toolkit.md` |
 | the flashing procedure, key combos or reset steps | `README.md`, `references/toolkit.md`, `references/beginner-guide.md` |

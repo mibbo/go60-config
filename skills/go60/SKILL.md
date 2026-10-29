@@ -1,6 +1,6 @@
 ---
 name: go60
-description: The user's MoErgo Go60 split keyboard and its go60-config toolkit. Answers where a character, key or function is on the layout that is actually flashed (å, ö, {, @, arrows, Enter, Super, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, coaches a split-keyboard beginner, and opens a visual cheat sheet. Changes keys by editing the text keymap (config/go60.keymap, built locally with go60-build) or guides changes in the MoErgo Layout Editor, then flashing with go60-flash (step by step, even after months away), fixing flash problems, rolling back, and checking the setup with go60-status. Use it whenever the user mentions their Go60, split or ergonomic keyboard, keyboard layers, thumb keys, "where is X on my keyboard", "how do I type X", swapping, remapping or adding keys, ZMK keymaps, flashing or updating keyboard firmware, the Layout Editor, or asks what their keyboard setup can do, even if they don't say "Go60".
+description: The user's MoErgo Go60 split keyboard and its go60-config toolkit. Answers where a character, key or function is on the layout that is actually flashed (å, ö, {, @, arrows, Enter, Super, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, coaches a split-keyboard beginner, and opens a visual cheat sheet. Handles the RGB lights: the Magic-layer lighting keys and per-key colour presets made in a browser colour editor (go60-leds edit). Changes keys by editing the text keymap (config/go60.keymap, built locally with go60-build) or guides changes in the MoErgo Layout Editor, then flashing with go60-flash (step by step, even after months away), fixing flash problems, rolling back, and checking the setup with go60-status. Use it whenever the user mentions their Go60, split or ergonomic keyboard, keyboard layers, thumb keys, "where is X on my keyboard", "how do I type X", swapping, remapping or adding keys, LED/RGB lights or key colours, ZMK keymaps, flashing or updating keyboard firmware, the Layout Editor, or asks what their keyboard setup can do, even if they don't say "Go60".
 ---
 
 # Go60 keyboard helper
@@ -110,6 +110,10 @@ do, how to flash, or comes back after a break:
 - `references/toolkit.md`: everything the repo can do, the full flashing walkthrough, flash problems,
   retrying one half, rolling back, layout history, and setting up on a new computer. Read it for any
   flashing, updating or "what can this do" question.
+
+- `references/leds.md`: the lights: Magic-layer lighting keys, effects, per-key colour presets
+  (`go60-leds edit` opens the colour editor, `go60-build` puts them on the keyboard) and how that works.
+  Read it for any LED, RGB or colour question.
 
 - `references/key-positions.md`: position names (C1–C6, R1–R5, T1–T3), fingers, and which facts are
   verified. Read it when an answer depends on exact physical placement.

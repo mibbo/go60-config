@@ -36,7 +36,8 @@ go60-build            # offers to commit, builds (Podman), then runs go60-flash
   Later builds take a minute or two.
 - Builds use the same ZMK version as the currently flashed firmware (e.g. v25.11), so the firmware
   version doesn't change by accident. `--zmk v26.xx` upgrades on purpose, and `go60-flash` then prints
-  the configuration-reset reminder.
+  the configuration-reset reminder. A new version may also need the LED patch re-made (`leds.md`).
+- Every build includes the per-key LED presets from `config/led-presets.json` (see `leds.md`).
 
 **When Claude edits the keymap:** make the change, run `go60-keymap check`, and show the user the
 changed keys as summary lines (position names, old → new). Then let the user run `go60-build`, because
