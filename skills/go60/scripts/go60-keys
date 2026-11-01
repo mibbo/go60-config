@@ -7,21 +7,20 @@
   go60-keys layers              list the layers and how to reach each one
   go60-keys show [LAYER...]     draw layers as the physical keyboard, with Finnish legends
   go60-keys cheatsheet [--open] [-o FILE]
-                                write the interactive HTML cheat sheet
+                                write the cheat sheet (the Go60 app page as a read-only file;
+                                go60-ui serves it with the LED editor tab too)
 
 Options: --file PATH (another layout JSON export), --all (include the factory test layer)
 Legends are what the keys type with the Finnish (fi) keyboard layout.
 """
 
 import argparse
-import html
-import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import app  # noqa: E402
 import keymap as km  # noqa: E402
 
 WORDS = {
@@ -47,8 +46,14 @@ LEVEL_MODS = {0: set(), 1: {"shift"}, 2: {"altgr"}, 3: {"shift", "altgr"}}
 LEVEL_WORDS = {1: "Shift", 2: "AltGr", 3: "Shift + AltGr"}
 
 
-def where(i):
-    return f"{km.position_name(i)}: {km.position_words(i)}  [index {i}]"
+def base_name(L, i):
+    """The key's name on the base layer (e.g. 'x', 'Magic'), the easy way to spot it on the keyboard."""
+    label = L.describe(L.layers[0][i])["label"]
+    return label if label and label not in ("·", "▽") else "blank"
+
+
+def where(L, i):
+    return f"{km.position_name(i)} ({base_name(L, i)} key): {km.position_words(i)}  [index {i}]"
 
 
 def layer_heading(L, l):
@@ -66,18 +71,8 @@ def reach_lines(L, l, indent="      "):
     lines = []
     for src, i, how in ways:
         from_txt = "" if src == 0 else f" (from the {L.names[src]} layer)"
-        lines.append(f"{indent}To get there: {how}{from_txt}: {where(i)}")
+        lines.append(f"{indent}To get there: {how}{from_txt}: {where(L, i)}")
     return lines
-
-
-def modifier_keys(L, mod):
-    """Where a modifier (shift/altgr/...) lives on the base layer."""
-    out = []
-    for i, b in enumerate(L.layers[0]):
-        d = L.describe(b)
-        if mod in d["holds"] or any(c in km.MOD_KEYS and km.MOD_KEYS[c] == mod and not m for c, m in d["taps"]):
-            out.append((i, d))
-    return out
 
 
 def char_targets(ch):
@@ -163,12 +158,12 @@ def print_hits(L, hits, extra_mods=()):
             if (l, i, text) in seen:
                 continue
             seen.add((l, i, text))
-            print(f"    • {where(i)}")
+            print(f"    • {where(L, i)}")
             print(f"      {text}")
         for line in reach_lines(L, l):
             print(line)
     for mod in sorted(extra_mods):
-        keys = modifier_keys(L, mod)
+        keys = km.modifier_keys(L, mod)
         if keys:
             locs = "; ".join(f"{km.position_name(i)} ({km.position_words(i)}): {d['text']}" for i, d in keys)
             print(f"  {km.MOD_LABEL[mod]} is on the base layer at {locs}")
@@ -179,7 +174,7 @@ def print_hits(L, hits, extra_mods=()):
 def key_info(L, text, include_test):
     i = km.parse_position(text)
     print()
-    print(where(i))
+    print(where(L, i))
     for l in range(len(L.layers)):
         if L.is_test_layer(l) and not include_test:
             continue
@@ -239,44 +234,13 @@ def show(L, which, include_test):
 
 # ------------------------------------------------------------ cheat sheet ---
 
-def cheatsheet_data(L):
-    layers = []
-    for l, name in enumerate(L.names):
-        keys = []
-        for i, b in enumerate(L.layers[l]):
-            d = L.describe(b)
-            k = {"i": i, "pos": km.position_name(i), "where": km.position_words(i), "kind": d["kind"],
-                 "label": d["label"], "sub": d["sub"], "text": d["text"], "zmk": d["zmk"],
-                 "types": [c for c in (km.fi_char(code, mods) for code, mods in d["taps"]) if c and c.strip()]}
-            if d["kind"] == "trans":
-                src, eff = L.effective(l, i)
-                k["under"] = eff["label"]
-                k["types"] = [c for c in (km.fi_char(code, mods) for code, mods in eff["taps"]) if c and c.strip()]
-            keys.append(k)
-        reach = [{"from": L.names[src], "pos": km.position_name(i), "where": km.position_words(i), "how": how}
-                 for src, i, how in L.reach(l)]
-        layers.append({"n": l, "name": name, "test": L.is_test_layer(l), "keys": keys, "reach": reach})
-    mods = {}
-    for mod in ("shift", "altgr", "ctrl", "alt", "super"):
-        mods[km.MOD_LABEL[mod]] = [km.position_name(i) for i, _ in modifier_keys(L, mod)]
-    return {"title": L.data.get("title", "Go60 layout"), "uuid": L.data.get("uuid", ""),
-            "locale": L.data.get("locale", ""), "notes": L.data.get("notes", ""),
-            "date": L.data.get("date"), "layers": layers, "mods": mods,
-            "positions": {i: list(p) for i, p in km.POSITIONS.items()}}
-
-
 def cheatsheet(L, out, open_it):
-    template = (km.SKILL_DIR / "assets" / "cheatsheet.html").read_text(encoding="utf-8")
-    data = json.dumps(cheatsheet_data(L), ensure_ascii=False).replace("</", "<\\/")
-    page = template.replace("/*__GO60_DATA__*/null", data)
-    page = page.replace("__GO60_TITLE__", html.escape(L.data.get("title", "Go60 layout")))
+    """The Go60 app page as a read-only file: the Cheat sheet tab, with the LED presets on the keys."""
     out = Path(out).expanduser()
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(page, encoding="utf-8")
+    app.write_static(L, out)
     print(out)
     if open_it:
-        subprocess.Popen(["xdg-open", str(out)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         start_new_session=True)
+        app.open_in_browser(out)
 
 
 def default_cheatsheet_path():

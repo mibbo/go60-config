@@ -467,3 +467,41 @@ class Layout:
 
     def is_test_layer(self, l):
         return "factory" in self.names[l].lower() or "test" in self.names[l].lower()
+
+
+# ------------------------------------------------- cheat sheet data ---
+
+def modifier_keys(L, mod):
+    """Where a modifier (shift/altgr/...) lives on the base layer."""
+    out = []
+    for i, b in enumerate(L.layers[0]):
+        d = L.describe(b)
+        if mod in d["holds"] or any(c in MOD_KEYS and MOD_KEYS[c] == mod and not m for c, m in d["taps"]):
+            out.append((i, d))
+    return out
+
+
+def cheatsheet_data(L):
+    layers = []
+    for l, name in enumerate(L.names):
+        keys = []
+        for i, b in enumerate(L.layers[l]):
+            d = L.describe(b)
+            k = {"i": i, "pos": position_name(i), "where": position_words(i), "kind": d["kind"],
+                 "label": d["label"], "sub": d["sub"], "text": d["text"], "zmk": d["zmk"],
+                 "types": [c for c in (fi_char(code, mods) for code, mods in d["taps"]) if c and c.strip()]}
+            if d["kind"] == "trans":
+                src, eff = L.effective(l, i)
+                k["under"] = eff["label"]
+                k["types"] = [c for c in (fi_char(code, mods) for code, mods in eff["taps"]) if c and c.strip()]
+            keys.append(k)
+        reach = [{"from": L.names[src], "pos": position_name(i), "where": position_words(i), "how": how}
+                 for src, i, how in L.reach(l)]
+        layers.append({"n": l, "name": name, "test": L.is_test_layer(l), "keys": keys, "reach": reach})
+    mods = {}
+    for mod in ("shift", "altgr", "ctrl", "alt", "super"):
+        mods[MOD_LABEL[mod]] = [position_name(i) for i, _ in modifier_keys(L, mod)]
+    return {"title": L.data.get("title", "Go60 layout"), "uuid": L.data.get("uuid", ""),
+            "locale": L.data.get("locale", ""), "notes": L.data.get("notes", ""),
+            "date": L.data.get("date"), "layers": layers, "mods": mods,
+            "positions": {i: list(p) for i, p in POSITIONS.items()}}

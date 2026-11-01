@@ -33,10 +33,13 @@ effect (4, 5, …), in file order. "Next effect" cycles through all of them and 
 
 ## Editing presets
 
-1. `go60-leds edit` starts a small local server (127.0.0.1 only) and opens the editor in the browser:
+1. Press **Super+Shift+K** (or run `go60-ui --lights` / `go60-leds edit`) to open the Go60 app, a small local
+   server (127.0.0.1 only), and go to its **Lights** tab:
    preset tabs, a colour picker and palette, click or drag to paint keys, right-click to pick up a
    colour, fill buttons per finger (both hands, left or right), rename, duplicate, reorder and delete.
    **Save** (Ctrl+S) writes `config/led-presets.json`. Ctrl+C in the terminal stops the server.
+   The app's **Cheat sheet** tab shows the chosen preset's colours on the keys (Lights On/Off and a preset
+   menu), including unsaved edits. The plain cheat sheet file (`go60-keys cheatsheet`) shows saved presets.
 2. `go60-build` builds the presets in (it commits `config/` first; a presets-only commit is titled
    "LED presets: …"), then flashes.
 

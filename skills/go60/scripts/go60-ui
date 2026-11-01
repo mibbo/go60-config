@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""go60-ui: the Go60 app in the browser, with two tabs.
+
+  Cheat sheet  the flashed layout: layers, search, what each key does, with your LED colours on the keys
+  Lights       the per-key LED colour preset editor (saves config/led-presets.json; go60-build flashes it)
+
+  go60-ui [--lights] [--no-open] [--port N] [--file LAYOUT.json]
+  go60-ui --app        open it as an app window (what Super+Shift+K and the app launcher run)
+
+It runs a small server on 127.0.0.1 until you press Ctrl+C. Reload the page to see a new flash.
+With --app the server keeps running in the background (port 46060), so the hotkey just opens or
+focuses the window; it restarts by itself after the app's code changes.
+For a file that works without the server (cheat sheet only), use: go60-keys cheatsheet --open
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import app  # noqa: E402
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="go60-ui", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--lights", action="store_true", help="start on the Lights tab")
+    ap.add_argument("--no-open", action="store_true", help="don't open the browser")
+    ap.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: any free one)")
+    ap.add_argument("--file", help="layout JSON export (default: layout/current.json in the go60-config repo)")
+    ap.add_argument("--app", action="store_true", help="open as an app window, starting the background server if needed")
+    ap.add_argument("--serve-app", action="store_true", help=argparse.SUPPRESS)   # the background server itself
+    args = ap.parse_args()
+    if args.app:
+        app.launch_app()
+    elif args.serve_app:
+        app.serve(app.APP_PORT, open_it=False, background=True)
+    else:
+        app.serve(args.port, not args.no_open, tab="lights" if args.lights else "cheatsheet", layout_file=args.file)
+
+
+if __name__ == "__main__":
+    main()

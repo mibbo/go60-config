@@ -1,6 +1,6 @@
 ---
 name: go60
-description: The user's MoErgo Go60 split keyboard and its go60-config toolkit. Answers where a character, key or function is on the layout that is actually flashed (å, ö, {, @, arrows, Enter, Super, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, coaches a split-keyboard beginner, and opens a visual cheat sheet. Handles the RGB lights: the Magic-layer lighting keys and per-key colour presets made in a browser colour editor (go60-leds edit). Changes keys by editing the text keymap (config/go60.keymap, built locally with go60-build) or guides changes in the MoErgo Layout Editor, then flashing with go60-flash (step by step, even after months away), fixing flash problems, rolling back, and checking the setup with go60-status. Use it whenever the user mentions their Go60, split or ergonomic keyboard, keyboard layers, thumb keys, "where is X on my keyboard", "how do I type X", swapping, remapping or adding keys, LED/RGB lights or key colours, ZMK keymaps, flashing or updating keyboard firmware, the Layout Editor, or asks what their keyboard setup can do, even if they don't say "Go60".
+description: The user's MoErgo Go60 split keyboard and its go60-config toolkit. Answers where a character, key or function is on the layout that is actually flashed (å, ö, {, @, arrows, Enter, Super, Bluetooth, bootloader), explains layers, thumb keys and the Magic key, coaches a split-keyboard beginner, and opens a visual cheat sheet. Handles the RGB lights: the Magic-layer lighting keys and per-key colour presets made in the Go60 app's Lights tab (go60-ui). Changes keys by editing the text keymap (config/go60.keymap, built locally with go60-build) or guides changes in the MoErgo Layout Editor, then flashing with go60-flash (step by step, even after months away), fixing flash problems, rolling back, and checking the setup with go60-status. Use it whenever the user mentions their Go60, split or ergonomic keyboard, keyboard layers, thumb keys, "where is X on my keyboard", "how do I type X", swapping, remapping or adding keys, LED/RGB lights or key colours, ZMK keymaps, flashing or updating keyboard firmware, the Layout Editor, or asks what their keyboard setup can do, even if they don't say "Go60".
 ---
 
 # Go60 keyboard helper
@@ -30,7 +30,8 @@ go60-keys find å '{' enter arrows        # where is it? (characters, key names,
 go60-keys key "LH T1" 36                 # what does this key do on every layer?
 go60-keys layers                         # the layers and how to reach each one
 go60-keys show SymbolNav                 # draw a layer as the physical keyboard
-go60-keys cheatsheet --open              # open the interactive HTML cheat sheet in the browser
+go60-ui --app                            # the Go60 app window (cheat sheet + LED editor tabs) = Super+Shift+K
+go60-keys cheatsheet --open              # the cheat sheet as a plain file (no server)
 ```
 
 If `go60-keys` isn't on PATH, run `~/.claude/skills/go60/scripts/go60-keys`. Quote single characters
@@ -42,14 +43,17 @@ like `'{'` or `'*'` for the shell. `find` also accepts words such as `bootloader
 The user is still learning where things are, so answer the way you'd point at a physical keyboard.
 
 **Start every answer with the key combination as a one-line summary**, in a blockquote so it stands
-out. Write each key as its MoErgo position name in backticks, in the order to press them, and mark
-the keys that are held. The user reads this line first and often needs nothing else:
+out: what it does, then the keys in bold, named by their base-layer legend (what the user sees and finds
+fastest) and joined with ` + ` in the order to press them, then their MoErgo position names in brackets
+(the user is learning those). Hold every key but the last, which is tapped. `go60-keys` prints the base name
+next to every position, e.g. `LH C4R4 (x key)`; take it from there, since it comes from the flashed layout.
+The user reads this line first and often needs nothing else:
 
-> **Super + →** : `LH T1` hold + `RH C2R5` hold + `LH C2R3` tap
+> Super + →: **SymbolNav + Super + f** (LH T1 + RH C2R5 + LH C2R3)
 
-> **{** : `RH T1` hold + `RH C2R1` tap
+> {: **Enter + 7** (RH T1 + RH C2R1)
 
-> **å** : `RH C3R5`
+> Bluetooth profile 0: **Magic + x** (LH C6R4 + LH C4R4)
 
 If there are several good ways, give one summary line for each, easiest first, and put a short label
 after the line (e.g. "SymbolNav on the left hand"). Then explain:
@@ -112,7 +116,7 @@ do, how to flash, or comes back after a break:
   flashing, updating or "what can this do" question.
 
 - `references/leds.md`: the lights: Magic-layer lighting keys, effects, per-key colour presets
-  (`go60-leds edit` opens the colour editor, `go60-build` puts them on the keyboard) and how that works.
+  (`go60-ui --lights` opens the colour editor, `go60-build` puts them on the keyboard) and how that works.
   Read it for any LED, RGB or colour question.
 
 - `references/key-positions.md`: position names (C1–C6, R1–R5, T1–T3), fingers, and which facts are

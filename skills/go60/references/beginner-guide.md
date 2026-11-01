@@ -51,7 +51,7 @@ the layer key again, or use the key that returns to the base layer.
 - Practice in short sessions with a typing trainer, such as keybr.com or monkeytype.com, which support a
   Finnish word list.
 - Learn the layers one at a time. Start with the letters, then the symbols you use most, then navigation.
-- Keep the cheat sheet open while learning: `go60-keys cheatsheet --open` shows each layer with Finnish
+- Keep the cheat sheet open while learning: `go60-ui` (or `go60-keys cheatsheet --open`) shows each layer with Finnish
   legends and has a search box.
 - Remap only after using the layout for a while. Change things that keep bothering you, one or two at a time.
 

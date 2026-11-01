@@ -8,27 +8,30 @@ MoErgo's web Layout Editor or as text in `config/go60.keymap`, and both ways are
   comments. `config/` and the `Dockerfile` come from MoErgo's
   [go60-zmk-config](https://github.com/moergo-keyboards/go60-zmk-config) template.
 - `scripts/go60-build`: builds firmware from the keymap locally (Podman), then runs `go60-flash`
-- `config/led-presets.json`: per-key LED colour presets, edited with `go60-leds edit` and built in by `go60-build`
+- `config/led-presets.json`: per-key LED colour presets, edited in `go60-ui` (Lights tab) and built in by `go60-build`
   through `config/patches/rgb-presets.patch` (see Lights below)
 - `firmware/`: every `.uf2` I have flashed, named `<date>_v<firmware version>_<layout name>_<layout id>.uf2`
 - `layout/current.json`: the current layout as a Layout Editor JSON export. `git log -p layout/current.json`
   shows what changed between flashes.
 - `skills/go60/`: a Claude Code skill, so Claude can answer "where is å?" or "how do I get to the arrows?"
-  from any folder, plus the `go60-keys` command and an interactive cheat sheet
+  from any folder, plus the `go60-keys` command and the Go60 app (`go60-ui`: cheat sheet and LED editor)
 - `AGENTS.md` (and `CLAUDE.md`, which imports it): context for AI agents working in this repo
 - `scripts/install`: symlinks everything into place (`go60-flash`, `go60-build`, `go60-keymap`, `go60-keys`,
-  `go60-leds` and `go60-status` in `~/.local/bin`,
+  `go60-leds`, `go60-ui` and `go60-status` in `~/.local/bin`,
   the skill in `~/.claude/skills/go60`). Run it once
   after cloning; after that, `git pull` updates everything.
 
 ## Layout help
 
 ```
-go60-keys find å '{' enter       # where is it, on which layer, and how to get there
+go60-keys find å '{' enter       # where is it, on which layer, and how to get there (each key also named by its base-layer legend, e.g. "LH C4R4 (x key)")
 go60-keys key "LH T1"            # what one key does on every layer
 go60-keys layers                 # layers and how to reach them
 go60-keys show SymbolNav         # draw a layer with Finnish legends
-go60-keys cheatsheet --open      # interactive cheat sheet (search, per-layer tabs)
+Super+Shift+K                    # the Go60 app in its own window (also "Go60" in the app launcher)
+go60-ui                          # the same app in a browser tab: Cheat sheet tab (layers, search, LED colours on keys)
+                                 #   and Lights tab (LED preset editor); Ctrl+C in the terminal closes it
+go60-keys cheatsheet --open      # the cheat sheet as a plain file (no server; also for printing)
 ```
 
 `go60-status` shows where things stand: the flashed layout and firmware (and how long ago), builds waiting in
@@ -66,7 +69,8 @@ Hold Magic and tap the left-hand top/home row keys for on/off, effect, brightnes
 Per-key colour presets (e.g. one colour per finger while learning) are extra effects after MoErgo's four:
 
 ```
-go60-leds edit           # colour editor in the browser: paint keys, fill by finger, save to config/led-presets.json
+go60-ui --lights         # the app's Lights tab: paint keys, fill by finger, save to config/led-presets.json
+                         # (go60-leds edit does the same)
 go60-leds list           # effect numbers; Magic + LH C1R3 steps to the next effect on the keyboard
 go60-build               # build the presets in and flash
 ```

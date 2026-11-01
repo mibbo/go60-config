@@ -117,7 +117,7 @@ check() { if [[ $2 == ok ]]; then echo "  ✓ $1"; else echo "  ✗ $1  ($2)"; f
   check go60-flash ok || check go60-flash "run $REPO_DIR/scripts/install"
 [[ $(readlink -f "$HOME/.local/bin/go60-keys" 2>/dev/null) == "$REPO_DIR/skills/go60/scripts/go60-keys" ]] &&
   check go60-keys ok || check go60-keys "run $REPO_DIR/scripts/install"
-for cmd in go60-build go60-keymap; do
+for cmd in go60-build go60-keymap go60-leds go60-ui; do
   [[ -n $(readlink -f "$HOME/.local/bin/$cmd" 2>/dev/null) && -e $HOME/.local/bin/$cmd ]] &&
     check "$cmd" ok || check "$cmd" "run $REPO_DIR/scripts/install"
 done
@@ -125,6 +125,10 @@ done
   check "Claude skill (~/.claude/skills/go60)" ok || check "Claude skill" "run $REPO_DIR/scripts/install"
 grep -q 'go60-flash' "$HOME/.config/hypr/bindings.lua" 2>/dev/null &&
   check "Super+Shift+Ctrl+K runs go60-flash" ok || check "Hyprland shortcut" "not in ~/.config/hypr/bindings.lua"
+grep -q 'go60-ui --app' "$HOME/.config/hypr/bindings.lua" 2>/dev/null &&
+  check "Super+Shift+K opens the Go60 app" ok || check "Go60 app shortcut" "not in ~/.config/hypr/bindings.lua"
+[[ -f $HOME/.local/share/applications/go60.desktop ]] &&
+  check "Go60 in the app launcher" ok || check "app launcher entry" "run $REPO_DIR/scripts/install"
 if [[ -f $CHEATSHEET && -f $LAYOUT && $CHEATSHEET -nt $LAYOUT ]]; then
   check "cheat sheet up to date (go60-keys cheatsheet --open)" ok
 else

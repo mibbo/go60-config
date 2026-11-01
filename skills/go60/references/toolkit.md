@@ -18,9 +18,9 @@ whether the tools are installed.
 | Task | How |
 |------|-----|
 | Find a key or character, learn the layers | Ask Claude (this skill), or `go60-keys find/key/layers/show` |
-| Visual cheat sheet | `go60-keys cheatsheet --open` (updated automatically after each flash) |
+| Visual cheat sheet | **Super+Shift+K** or "Go60" in the app launcher (`go60-ui --app`: app window with Cheat sheet and Lights tabs; reload after a flash), `go60-ui` (same in a browser tab, until Ctrl+C), or `go60-keys cheatsheet --open` (plain file, updated automatically after each flash) |
 | See the state of the setup | `go60-status` |
-| Light colours per key (presets) | `go60-leds edit` (browser colour editor) → `go60-build`; see `leds.md` |
+| Light colours per key (presets) | `go60-ui --lights` (colour editor) → `go60-build`; see `leds.md` |
 | Flash a new layout (web) | Layout Editor → Save and Build and download JSON → `go60-flash` (or Super+Shift+Ctrl+K) |
 | Change keys as text | edit `config/go60.keymap` → `go60-keymap check` → `go60-build` or **Super+Shift+Ctrl+K** (builds with Podman, then flashes); see `keymap-editing.md` |
 | What the hotkey / plain `go60-flash` picks | a new editor download in `~/Downloads`, a firmware waiting in `build/`, or unbuilt keymap edits (offers to build). If an editor download and a local build are both waiting, it asks which one. |
@@ -85,18 +85,22 @@ ends by running `go60-flash`, so steps 5–7 below apply to it too. The **web ed
 - **See what changed in the layout**: `git log -p layout/current.json`, or list changed keys between two
   layout JSONs with `go60-keymap diff old.json new.json`.
 - **New computer**: `gh repo clone go60-config ~/sync/git/go60-config`, then `scripts/install`. Add the
-  Hyprland shortcut again with the omarchy skill if it's needed.
+  Hyprland shortcuts (Super+Shift+Ctrl+K flash, Super+Shift+K Go60 app) again with the omarchy skill if needed.
+  `scripts/install` recreates the app launcher entry.
 
 ## 5. Where things are
 
 - Repo: `~/sync/git/go60-config` (GitHub: private repo `go60-config`). The human-oriented overview is
   its `README.md`.
 - Commands (symlinked into `~/.local/bin` by `scripts/install`): `go60-flash`, `go60-build`, `go60-keymap`,
-  `go60-keys`, `go60-leds`, `go60-status`. `go60-build` needs Podman (`omarchy pkg add podman`).
+  `go60-keys`, `go60-leds`, `go60-ui`, `go60-status`. `go60-build` needs Podman (`omarchy pkg add podman`).
 - Text keymap: `config/go60.keymap`. MoErgo's build files are `config/default.nix`, `go60.conf`,
   `info.json` and the top-level `Dockerfile`. Build output goes in `build/` (not committed).
 - Skill: `~/.claude/skills/go60`, a symlink to `skills/go60/` in the repo, so edits there apply immediately.
-- Cheat sheet file: `~/.cache/go60/cheatsheet.html`.
+- Cheat sheet file: `~/.cache/go60/cheatsheet.html` (the app page `skills/go60/assets/go60.html`, read-only).
+- Go60 app (`go60-ui --app`): a background server on 127.0.0.1:46060 (state and log in `~/.cache/go60/ui-server.*`;
+  restarts by itself after the app's code changes), shown as an Omarchy web app window titled "Go60 app".
+  Launcher entry: `~/.local/share/applications/go60.desktop` (written by `scripts/install`).
 - LED presets: `config/led-presets.json`, built in by `go60-build` through `config/patches/rgb-presets.patch`
   (see `leds.md`). Layout Editor firmware doesn't have them.
 - The repo follows MoErgo's `go60-zmk-config` template (keymap under `config/`). Builds are local only;
