@@ -35,14 +35,14 @@ the layer key again, or use the key that returns to the base layer.
 
 ## 3. Thumb keys and the Magic key
 
-- Each hand has three thumb keys (T1 innermost, T3 outermost and wider). On a split keyboard the thumbs
+- Each hand has three thumb keys (T1 next to the extra bottom key C2R5, T3 nearest the middle of the keyboard). On a split keyboard the thumbs
   do much more than space: in the factory layout they hold Shift, Ctrl, Alt, AltGr, Space, Enter and
   the SymbolNav layer.
 - **Magic** (factory: left pinky, outer bottom key, LH C6R4) is held to reach the Magic layer. That layer
   has Bluetooth profiles, RGB lighting, USB/Bluetooth output, reset, and the bootloader keys
   (Magic+Tab for the left half, Magic+\ for the right).
 - Hold-tap keys (`&mt`) do one thing when tapped and another when held. In the factory layout, the right
-  innermost thumb is Enter on tap and AltGr on hold. Holding it too long when you meant Enter gives AltGr instead.
+  thumb key next to Super (RH T1) is Enter on tap and AltGr on hold. Holding it too long when you meant Enter gives AltGr instead.
 
 ## 4. Learning tips
 

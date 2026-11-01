@@ -65,7 +65,7 @@ flashing needs their hands on the keyboard. Commit only if the user asks, since 
 ```
 
    The **text order is what counts**, not the column alignment. Thumb keys in text order are: left
-   T1 (innermost), T2, T3, then right T3, T2, T1 (innermost).
+   T1 (next to C2R5), T2, T3 (nearest the middle), then right T3, T2, T1.
 6. **Trackpad settings** (`&cirque_*_listener`) and the **custom devicetree** section.
 
 ## 3. Common edits

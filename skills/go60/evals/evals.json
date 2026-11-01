@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "missä on å-kirjain mun go60 näppiksessä? ja miten saan kirjoitettua aaltosulkeen {",
-      "expected_output": "Starts with blockquote summary line(s) of position names in backticks, e.g. '> **{** : `RH T1` hold + `RH C2R1` tap'. Finnish answer: å is on the base layer at the right hand extra bottom row, middle finger (RH C3R5), and on SymbolNav (LH C4R4, hold the left innermost thumb key). { is AltGr (hold right innermost thumb, RH T1) + 7 (right number row, index finger). Plain-language positions, short.",
+      "expected_output": "Starts with blockquote summary line(s) of position names in backticks, e.g. '> **{** : `RH T1` hold + `RH C2R1` tap'. Finnish answer: å is on the base layer at the right hand extra bottom row, middle finger (RH C3R5), and on SymbolNav (LH C4R4, hold the left thumb key next to Backspace, LH T1). { is AltGr (hold the right thumb Enter key next to Super, RH T1) + 7 (right number row, index finger). Plain-language positions, short.",
       "files": []
     },
     {

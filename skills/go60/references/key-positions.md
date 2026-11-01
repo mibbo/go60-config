@@ -11,8 +11,10 @@ physical keys using MoErgo's position names.
 - **R1–R5**: rows from the top. R1 is the number row, R2 the top letter row (Q W E …), R3 the home row
   (A S D …), R4 the bottom letter row (Z X C …), and R5 the extra bottom keys. Only C2, C3 and C4
   have an R5 key.
-- **T1–T3**: the curved 3-key thumb cluster, counted **from the inside out**. T1 is the innermost thumb key,
-  and T3 is the outermost and wider (1.5U) one.
+- **T1–T3**: the 3 thumb keys. They continue the curve of the extra bottom row toward the middle of the
+  keyboard: left half C2R5 (Backspace), T1, T2, T3; right half T3, T2, T1, C2R5 (Super). T1 is next to C2R5,
+  and T3 is nearest the middle. Checked on the keyboard: left Backspace, SymbolNav, Shift, Ctrl; right Alt,
+  Space, Enter, Super. Don't call them inner/outer: by the column convention (C1 = inner) T3 is the inner one.
 
 ## Fingers
 
@@ -25,6 +27,10 @@ physical keys using MoErgo's position names.
 | C5 | pinky (home: A on the left, Ö on the right) |
 | C6 | pinky (reaching outward: Esc, Tab, Magic …) |
 | T1–T3 | thumb |
+| C2R5 (LH Backspace, RH Super in the factory layout) | **thumb**: it sits right next to the thumb keys (confirmed by the user). C3R5 and C4R5 are still listed under their column's finger. |
+
+`keymap.py` (`finger()`, `THUMB_COLUMN_KEYS`) is where this is defined; `go60-keys`, the cheat sheet and the
+LED editor's finger fills all use it.
 
 Home position: left fingers on LH C5R3–C2R3 (A S D F), right fingers on RH C2R3–C5R3 (J K L Ö), and
 thumbs resting on the thumb cluster.

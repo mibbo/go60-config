@@ -6,7 +6,7 @@
  *   R1-R4  left half C6 C5 C4 C3 C2 C1  |  right half C1 C2 C3 C4 C5 C6
  *          (C1 = inner index-finger column, C6 = outer pinky column; R1 = number row, R3 = home row)
  *   R5     the extra bottom keys: left C4 C3 C2  |  right C2 C3 C4
- *   T      thumb keys, in this order: left T1 T2 T3  |  right T3 T2 T1  (T1 = innermost)
+ *   T      thumb keys, in this order: left T1 T2 T3  |  right T3 T2 T1  (T1 = next to C2R5, T3 = nearest the middle)
  *
  * The // line under each row shows what the keys type with the Finnish layout (▽ = same as the base
  * layer, · = nothing). It's a comment for reading only; `go60-keymap format` refreshes it after edits.

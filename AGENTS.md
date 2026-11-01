@@ -58,6 +58,9 @@ Rules of thumb:
 
 - Position mapping and Finnish legends are defined once, in `skills/go60/scripts/keymap.py`. The CLI and the
   cheat sheet both use it. Keep `references/*.md` in sync when changing it.
+- The keyboard drawing (`geom`, `halvesHTML`, `watchWidth`: compact thumbs under the bottom row in narrow
+  windows, MoErgo's real `config/info.json` positions when wide) is the same code in `assets/cheatsheet.html`
+  and `assets/leds.html`. Change both. The thumb order is confirmed on the keyboard (`references/key-positions.md`).
 - After changing the skill or `go60-keys`, check with `go60-keys find å '{' enter`,
   `go60-keys show 2` and `go60-keys cheatsheet`. Test prompts are in `skills/go60/evals/evals.json`.
 - After changing the converter, the JSON → keymap → JSON round trip must stay lossless:

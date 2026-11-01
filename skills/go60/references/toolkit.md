@@ -65,7 +65,7 @@ ends by running `go60-flash`, so steps 5–7 below apply to it too. The **web ed
 
 ## 3. Flash problems
 
-- **A combo does nothing**: use the power-on fallback. Power the half off, hold the outermost thumb key
+- **A combo does nothing**: use the power-on fallback. Power the half off, hold the thumb key nearest the middle of the keyboard
   and the middle-finger home key of that half (T3 + C3R3: **Alt+K** on the right, **Ctrl+D** on the left
   in the factory layout), and power on.
 - **Drive never appears**: use a direct cable, not a hub. MoErgo says bad hubs and cables cause most

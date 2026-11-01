@@ -200,26 +200,62 @@ const DATA = /*__GO60_DATA__*/null;
 const TOKEN = "__GO60_TOKEN__";
 
 // Same schematic geometry as the cheat sheet.
+// Keyboard drawing (same code in cheatsheet.html and leds.html). Units are keys; x grows toward the
+// middle of the keyboard on the left half. Thumb order from C2R5 (Backspace/Super) toward the middle:
+// T1, T2, T3 (checked on the keyboard).
+// Compact (narrow windows): the thumb keys are tucked under the extra bottom row.
 const STAGGER = {6: .55, 5: .55, 4: .2, 3: 0, 2: .15, 1: .3};
-const THUMBS = {3: [2.75, 5.15, 6, 1.5], 2: [4.35, 5.3, 14, 1], 1: [5.4, 5.62, 24, 1]};
-function geom(pos) {
+const THUMBS = {1: [3.3, 5.25, 6], 2: [4.35, 5.4, 14], 3: [5.35, 5.68, 22]};   // left half; mirrored on the right
+// Wide: MoErgo's real positions (config/info.json); the thumb keys continue the arc toward the middle.
+// Rotations there pivot on the key's top-left corner. The right half is shifted to start at x = 0.
+const WIDE_THUMBS = {L: {1: [5.2, 4.1, 12.5], 2: [6.4, 4.4, 25], 3: [7.5, 4.95, 37]},
+                     R: {3: [0, 5.5, -37], 2: [1, 4.8, -25], 1: [2.15, 4.3, -12.5]}};
+const HALF_W = {compact: {L: 6.35, R: 6.35, gap: .9}, wide: {L: 8.5, R: 8.35, gap: .65}};
+let wide = false;
+
+function geom(pos, isWide = wide) {
   const [side, kind, n, row] = pos;
-  let x, y, rot = 0, w = 1;
-  if (kind === "T") { [x, y, rot, w] = THUMBS[n]; }
+  if (isWide) {
+    if (kind === "T") { const [x, y, rot] = WIDE_THUMBS[side][n]; return {x, y, rot, w: 1, origin: "0 0"}; }
+    const y = row - 1 + (n >= 5 ? .5 : 0);
+    return {x: side === "L" ? 6 - n : 1.35 + n, y, rot: 0, w: 1, origin: "50% 50%"};
+  }
+  let x, y, rot = 0;
+  if (kind === "T") { [x, y, rot] = THUMBS[n]; }
   else { x = 6 - n; y = row - 1 + STAGGER[n]; }
-  if (side === "R") { x = 6.35 - x - w; rot = -rot; }
-  return {x, y, rot, w};
+  if (side === "R") { x = 6.35 - x - 1; rot = -rot; }
+  return {x, y, rot, w: 1, origin: "50% 50%"};
+}
+
+const keyPos = (g) => `left:calc(var(--u)*${g.x});top:calc(var(--u)*${g.y});transform:rotate(${g.rot}deg);transform-origin:${g.origin}`;
+
+function halvesHTML(left, right, isWide = wide) {
+  const h = HALF_W[isWide ? "wide" : "compact"];
+  return `<div class="half" style="width:calc(var(--u)*${h.L})">${left}<span class="half-name">Left half</span></div>` +
+    `<div class="half" style="width:calc(var(--u)*${h.R});margin-left:calc(var(--u)*${h.gap - .9})">${right}<span class="half-name">Right half</span></div>`;
+}
+
+// Wide drawing whenever the whole keyboard fits next to itself at full size.
+function watchWidth(scroller, rerender) {
+  const check = () => {
+    const u = parseFloat(getComputedStyle(scroller).getPropertyValue("--u")) || 56;
+    const h = HALF_W.wide, need = (h.L + h.R + h.gap) * u + 48;
+    const w = scroller.clientWidth >= need;
+    if (w !== wide) { wide = w; rerender(); }
+  };
+  new ResizeObserver(check).observe(scroller);
+  check();
 }
 
 const PALETTE = ["#ff3b30", "#ff8a00", "#ffb000", "#ffe600", "#34c759", "#00c7a3", "#00b8ff",
                  "#2f7bff", "#5b4dff", "#b04dff", "#ff4fa3", "#ffffff"];
 const OFF = "#000000";
 const FILLS = [
-  ["Pinkies", (p) => p[1] === "C" && p[2] >= 5],
-  ["Ring", (p) => p[1] === "C" && p[2] === 4],
-  ["Middle", (p) => p[1] === "C" && p[2] === 3],
-  ["Index", (p) => p[1] === "C" && p[2] <= 2],
-  ["Thumbs", (p) => p[1] === "T"],
+  ["Pinkies", (k) => k.finger === "pinky"],
+  ["Ring", (k) => k.finger === "ring finger"],
+  ["Middle", (k) => k.finger === "middle finger"],
+  ["Index", (k) => k.finger === "index finger"],
+  ["Thumbs", (k) => k.finger === "thumb"],
   ["All", () => true],
 ];
 
@@ -282,8 +318,7 @@ function renderActions() {
 }
 
 function keyStyle(k, hex) {
-  const g = geom(k.p);
-  const pos = `left:calc(var(--u)*${g.x});top:calc(var(--u)*${g.y});transform:rotate(${g.rot}deg)`;
+  const pos = keyPos(geom(k.p));
   return hex === OFF ? pos : `${pos};background:${css(hex)};color:${inkFor(hex)}`;
 }
 
@@ -301,8 +336,7 @@ function renderBoard() {
       ` style="${keyStyle(k, hex)}" title="${esc(k.pos)} (${esc(k.where)}): ${hex === OFF ? "off" : hex}">` +
       `<span class="lab ${sizeClass(label)}">${esc(label)}</span><span class="sub">${esc(k.pos.slice(3))}</span></button>`);
   }
-  $("#board").innerHTML = `<div class="half">${halves.L.join("")}<span class="half-name">Left half</span></div>` +
-    `<div class="half">${halves.R.join("")}<span class="half-name">Right half</span></div>`;
+  $("#board").innerHTML = halvesHTML(halves.L.join(""), halves.R.join(""));
 }
 
 function updateKey(i) {
@@ -353,7 +387,7 @@ function paint(i) {
 function fill(test) {
   const p = presets[current]; if (!p) return;
   pushUndo();
-  for (const k of DATA.keys) if ((side === "B" || k.p[0] === side) && test(k.p)) p.keys[k.pos] = color;
+  for (const k of DATA.keys) if ((side === "B" || k.p[0] === side) && test(k)) p.keys[k.pos] = color;
   renderBoard(); renderEffects(); refreshStatus();
 }
 
@@ -375,6 +409,7 @@ function init() {
   $("#file").textContent = DATA.file;
   $("#fills").innerHTML = FILLS.map(([name], n) => `<button type="button" class="btn small" data-f="${n}">${name}</button>`).join("");
   renderPalette(); render();
+  watchWidth($(".board-scroll"), renderBoard);
 
   $("#tabs").addEventListener("click", (e) => {
     if (e.target.closest("#add")) {

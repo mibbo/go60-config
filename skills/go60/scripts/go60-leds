@@ -115,7 +115,7 @@ def editor_data(presets):
         labels = [L.describe(b)["label"] for b in L.layers[0]]
     except (OSError, ValueError, KeyError, IndexError):
         labels = [""] * 60
-    keys = [{"i": i, "pos": NAMES[i], "where": km.position_words(i), "label": labels[i],
+    keys = [{"i": i, "pos": NAMES[i], "where": km.position_words(i), "finger": km.finger(i), "label": labels[i],
              "p": list(km.POSITIONS[i])} for i in range(60)]
     return {"keys": keys, "presets": presets, "stock": STOCK_EFFECTS, "max": MAX_PRESETS,
             "file": str(PRESETS_FILE.relative_to(km.REPO_DIR)) if PRESETS_FILE.is_relative_to(km.REPO_DIR)

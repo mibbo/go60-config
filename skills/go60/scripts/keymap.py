@@ -28,7 +28,8 @@ def load_layout(path=None):
 # ------------------------------------------------------ physical layout ---
 # Index -> position, per MoErgo's naming: C1 = inner (index finger) column,
 # C6 = outer pinky column, R1 = number row ... R4 = bottom letter row, R5 = the
-# extra bottom keys that only columns C2-C4 have, T1 = innermost thumb key.
+# extra bottom keys that only columns C2-C4 have. The thumb keys continue the arc of R5 toward the
+# middle of the keyboard: C2R5, T1, T2, T3 (T3 nearest the middle; checked on the keyboard).
 # Sources: official go60.keymap row structure, Go60 tech spec (C2-C4 have 5
 # rows, 3-key thumb cluster), bootloader docs (T3 + C3R3 = Ctrl+D / Alt+K),
 # and the factory layout notes (index 54 = LH T1, index 47 = RH C6R4).
@@ -38,7 +39,8 @@ FINGERS = {1: "index finger", 2: "index finger", 3: "middle finger", 4: "ring fi
            5: "pinky", 6: "pinky"}
 COLUMN_NOTES = {1: "inner column, reach toward the middle", 2: "", 3: "", 4: "",
                 5: "", 6: "outer column, reach outward"}
-THUMB_NOTES = {1: "innermost thumb key", 2: "middle thumb key", 3: "outermost thumb key (wide)"}
+THUMB_NOTES = {1: "first thumb key (next to C2R5)", 2: "middle thumb key",
+               3: "last thumb key (nearest the middle of the keyboard)"}
 
 
 def _build_positions():
@@ -70,12 +72,26 @@ def position_name(i):
     return f"{hand} T{n}" if kind == "T" else f"{hand} C{n}R{row}"
 
 
+# Column keys pressed with the thumb: C2R5 sits right next to the thumb keys (confirmed by the user).
+THUMB_COLUMN_KEYS = {(2, 5)}
+
+
+def finger(i):
+    """The finger that presses key i: 'thumb', 'index finger', ... 'pinky'."""
+    side, kind, n, row = POSITIONS[i]
+    if kind == "T" or (n, row) in THUMB_COLUMN_KEYS:
+        return "thumb"
+    return FINGERS[n]
+
+
 def position_words(i):
     """Plain-language description, e.g. 'left hand, home row, middle finger'."""
     side, kind, n, row = POSITIONS[i]
     hand = "left hand" if side == "L" else "right hand"
     if kind == "T":
         return f"{hand}, thumb, {THUMB_NOTES[n]}"
+    if (n, row) in THUMB_COLUMN_KEYS:
+        return f"{hand}, {ROW_NAMES[row]}, thumb (next to the thumb keys)"
     parts = [hand, ROW_NAMES[row], FINGERS[n]]
     if COLUMN_NOTES[n]:
         parts.append(COLUMN_NOTES[n])

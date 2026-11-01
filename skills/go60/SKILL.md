@@ -60,7 +60,7 @@ after the line (e.g. "SymbolNav on the left hand"). Then explain:
    unless the user asks for them.
 2. **Say which layer it's on and how to get there.** On the base layer, just press it. On another
    layer, name the key that activates the layer and say whether to hold it or double-tap it to lock.
-3. **Include any modifier needed and where it is**, e.g. "hold AltGr (right thumb, innermost key)
+3. **Include any modifier needed and where it is**, e.g. "hold AltGr (right thumb, the Enter key next to Super)
    and press 7 to get {".
 4. If there's more than one way, lead with the easiest and mention the others briefly.
 5. Point out anything surprising, such as dead keys (´ ¨ ^ ` ~ wait for the next key), or a
