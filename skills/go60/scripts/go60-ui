@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""go60-ui: the Go60 app in the browser, with two tabs.
+"""go60-ui: the Go60 app in the browser, with three tabs.
 
   Cheat sheet  the flashed layout: layers, search, what each key does, with your LED colours on the keys
+  Guide        how-tos: Bluetooth, status lights, resets, flashing, battery, trackpads, Finnish symbols, tips
   Lights       the per-key LED colour preset editor (saves config/led-presets.json; go60-build flashes it)
 
   go60-ui [--lights] [--no-open] [--port N] [--file LAYOUT.json]
@@ -10,7 +11,7 @@
 It runs a small server on 127.0.0.1 until you press Ctrl+C. Reload the page to see a new flash.
 With --app the server keeps running in the background (port 46060), so the hotkey just opens or
 focuses the window; it restarts by itself after the app's code changes.
-For a file that works without the server (cheat sheet only), use: go60-keys cheatsheet --open
+For a file that works without the server (Cheat sheet and Guide), use: go60-keys cheatsheet --open
 """
 
 import argparse

@@ -1,7 +1,8 @@
-"""The Go60 app page (assets/go60.html): a Cheat sheet tab and a Lights (LED preset editor) tab.
+"""The Go60 app page (assets/go60.html): Cheat sheet, Guide (how-tos built from the layout) and Lights
+(LED preset editor) tabs.
 
 go60-ui serves it from a small local server, so the Lights tab can save config/led-presets.json.
-go60-keys cheatsheet writes the same page as a read-only file (cheat sheet only, lights shown).
+go60-keys cheatsheet writes the same page as a read-only file (Cheat sheet and Guide, lights shown).
 go60-ui --app (the hotkey and app launcher) keeps one server running on a fixed port and opens the page
 as an Omarchy web app window, or focuses that window if it is already open.
 """
@@ -26,6 +27,17 @@ APP_PORT = 46060
 APP_TITLE = "Go60 app"   # in the page title; the hotkey finds the open window by it
 CACHE = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "go60"
 STATE_FILE = CACHE / "ui-server.json"
+# Characters the Guide tab's Finnish symbols card explains, with the keys that type them.
+GUIDE_SYMBOLS = "{}[]()\\|@$€~<>/=?*'\"#&%^`´¨"
+
+
+def guide_symbols(L):
+    out = []
+    for ch in GUIDE_SYMBOLS:
+        ways = [{"l": l, "i": i, "mods": sorted(mods), "dead": km.is_dead(code, mods)}
+                for l, i, mods, code in km.char_ways(L, ch)]
+        out.append({"ch": ch, "ways": ways})
+    return out
 
 
 def page_data(L, presets, editable, tab="cheatsheet"):
@@ -33,6 +45,7 @@ def page_data(L, presets, editable, tab="cheatsheet"):
     keys = [{"i": i, "pos": km.position_name(i), "where": km.position_words(i), "finger": km.finger(i),
              "label": labels[i], "p": list(km.POSITIONS[i])} for i in range(60)]
     return {"keys": keys, "layout": km.cheatsheet_data(L) if L else None, "editable": editable, "tab": tab,
+            "symbols": guide_symbols(L) if L else [],
             "leds": {"presets": presets, "stock": leds.STOCK_EFFECTS, "max": leds.MAX_PRESETS,
                      "file": leds.display_path()}}
 

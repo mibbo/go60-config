@@ -54,6 +54,12 @@
       "prompt": "can I make my go60 light up with a different colour for each finger while I learn? and switch back to the rainbow after",
       "expected_output": "Explains per-key presets: go60-ui --lights (or go60-leds edit) opens the colour editor (a Fingers preset already exists), save, then go60-build to flash. On the keyboard, Magic (LH C6R4) + LH C1R3 steps through effects: Swirl (rainbow) and then the presets. Mentions brightness keys dim presets, and that Layout Editor flashes drop presets. Reads references/leds.md.",
       "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "my go60 won't reconnect over bluetooth to my laptop after I paired it with my phone, what do I do?",
+      "expected_output": "Starts with summary line(s). Explains profiles: Magic (LH C6R4) + x/c/v/b (LH C4R4–C1R4) select profile 0–3, each remembers one device; switch back to the laptop's profile. If still failing: forget the profile on the keyboard (Magic + LH C6R1) and remove Go60 on the laptop (Super+Ctrl+B or bluetoothctl remove), then pair again. Mentions tapping Magic to see status lights (white/green/red/purple) and the app's Guide tab.",
+      "files": []
     }
   ]
 }

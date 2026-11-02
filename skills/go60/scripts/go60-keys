@@ -42,7 +42,6 @@ BEHAVIORS = {
     "bluetooth": ["&bt", "&bt_0", "&bt_1", "&bt_2", "&bt_3"], "bt": ["&bt", "&bt_0", "&bt_1", "&bt_2", "&bt_3"],
     "usb": ["&out"], "output": ["&out"], "rgb": ["&rgb_ug"], "lights": ["&rgb_ug"], "magic": ["&magic"],
 }
-LEVEL_MODS = {0: set(), 1: {"shift"}, 2: {"altgr"}, 3: {"shift", "altgr"}}
 LEVEL_WORDS = {1: "Shift", 2: "AltGr", 3: "Shift + AltGr"}
 
 
@@ -75,16 +74,6 @@ def reach_lines(L, l, indent="      "):
     return lines
 
 
-def char_targets(ch):
-    """All (code, level) that type ch with the Finnish layout."""
-    out = []
-    for code, legends in km.FI.items():
-        for level, s in enumerate(legends):
-            if s == ch:
-                out.append((code, level))
-    return out
-
-
 def find(L, query, include_test):
     q = query.strip() if query.strip() else query
     layers = [l for l in range(len(L.layers)) if include_test or not L.is_test_layer(l)]
@@ -92,7 +81,7 @@ def find(L, query, include_test):
 
     # A single character: search by what it types with the Finnish layout.
     if len(q) == 1:
-        targets = char_targets(q)
+        targets = km.char_targets(q)
         if not targets:
             print(f"{q!r}: can't be typed with a single key combination on the Finnish layout"
                   " (it may need a dead key, Compose or a macro).")
@@ -106,19 +95,13 @@ def find(L, query, include_test):
         how = " or ".join(ways)
         print(f"{q}   (Finnish layout: {how})")
         hits = []
-        for l in layers:
-            for i, b in enumerate(L.layers[l]):
-                d = L.describe(b)
-                for code, mods in d["taps"]:
-                    for tcode, lv in targets:
-                        if code != tcode:
-                            continue
-                        if mods == LEVEL_MODS[lv]:
-                            hits.append((l, i, 0, f"types {q} directly ({d['zmk']})"))
-                        elif not mods and lv:
-                            hits.append((l, i, 1, f"hold {LEVEL_WORDS[lv]} and press this key "
-                                                   f"(it types {km.key_label(code, set())})"))
-        print_hits(L, hits, extra_mods={m for _, lv in targets for m in LEVEL_MODS[lv]})
+        for l, i, mods, code in km.char_ways(L, q, include_test):
+            if not mods:
+                hits.append((l, i, 0, f"types {q} directly ({L.describe(L.layers[l][i])['zmk']})"))
+            else:
+                lv = next(lv for lv, m in km.LEVEL_MODS.items() if m == mods)
+                hits.append((l, i, 1, f"hold {LEVEL_WORDS[lv]} and press this key (it types {km.key_label(code, set())})"))
+        print_hits(L, hits, extra_mods={m for _, lv in targets for m in km.LEVEL_MODS[lv]})
         return
 
     key = q.lower().replace(" ", "").replace("-", "").replace("_", "")

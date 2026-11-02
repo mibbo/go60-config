@@ -29,9 +29,10 @@ go60-keys key "LH T1"            # what one key does on every layer
 go60-keys layers                 # layers and how to reach them
 go60-keys show SymbolNav         # draw a layer with Finnish legends
 Super+Shift+K                    # the Go60 app in its own window (also "Go60" in the app launcher)
-go60-ui                          # the same app in a browser tab: Cheat sheet tab (layers, search, LED colours on keys)
-                                 #   and Lights tab (LED preset editor); Ctrl+C in the terminal closes it
-go60-keys cheatsheet --open      # the cheat sheet as a plain file (no server; also for printing)
+go60-ui                          # the same app in a browser tab (Ctrl+C in the terminal closes it). Tabs:
+                                 #   Cheat sheet (layers, search, LED colours on keys), Guide (Bluetooth, status
+                                 #   lights, resets, flashing, battery, trackpads, Finnish symbols, tips) and Lights
+go60-keys cheatsheet --open      # Cheat sheet + Guide as a plain file (no server; also for printing)
 ```
 
 `go60-status` shows where things stand: the flashed layout and firmware (and how long ago), builds waiting in

@@ -30,7 +30,7 @@ go60-keys find å '{' enter arrows        # where is it? (characters, key names,
 go60-keys key "LH T1" 36                 # what does this key do on every layer?
 go60-keys layers                         # the layers and how to reach each one
 go60-keys show SymbolNav                 # draw a layer as the physical keyboard
-go60-ui --app                            # the Go60 app window (cheat sheet + LED editor tabs) = Super+Shift+K
+go60-ui --app                            # the Go60 app window = Super+Shift+K (Cheat sheet, Guide, Lights tabs)
 go60-keys cheatsheet --open              # the cheat sheet as a plain file (no server)
 ```
 
@@ -72,6 +72,7 @@ after the line (e.g. "SymbolNav on the left hand"). Then explain:
 
 Keep answers short. The user wants to find the key and keep typing, not read a report. For "show me
 the layer" questions, paste the `go60-keys show` output in a code block or suggest the cheat sheet.
+For Bluetooth, status lights, resets, battery or trackpad questions, answer, then point to the app's Guide tab.
 
 If something isn't on the layout, or is awkward to reach, say so and offer to change it. Never edit
 `layout/current.json` to "add" keys: it records what's flashed, and the keyboard only changes after a build and flash.

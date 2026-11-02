@@ -251,6 +251,33 @@ def fi_char(code, mods):
     return legends[level]
 
 
+LEVEL_MODS = {0: set(), 1: {"shift"}, 2: {"altgr"}, 3: {"shift", "altgr"}}
+
+
+def char_targets(ch):
+    """All (code, level) that type ch with the Finnish layout (level 0-3: plain, Shift, AltGr, Shift+AltGr)."""
+    return [(code, level) for code, legends in FI.items() for level, s in enumerate(legends) if s == ch]
+
+
+def char_ways(L, ch, include_test=False):
+    """Keys that type ch: (layer, index, mods to hold, code). mods is empty if the key types ch by itself."""
+    targets = char_targets(ch)
+    out = []
+    for l in range(len(L.layers)):
+        if not include_test and L.is_test_layer(l):
+            continue
+        for i, b in enumerate(L.layers[l]):
+            for code, mods in L.describe(b)["taps"]:
+                for tcode, lv in targets:
+                    if code != tcode:
+                        continue
+                    if mods == LEVEL_MODS[lv]:
+                        out.append((l, i, set(), code))
+                    elif not mods and lv:
+                        out.append((l, i, LEVEL_MODS[lv], code))
+    return out
+
+
 def is_dead(code, mods):
     level = {frozenset(): 0, frozenset({"shift"}): 1, frozenset({"altgr"}): 2}.get(frozenset(mods))
     return (code, level) in DEAD

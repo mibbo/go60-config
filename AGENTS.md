@@ -16,7 +16,7 @@ Omarchy (Arch + Hyprland) with the Finnish keyboard layout (`fi`). The user is n
 | `config/led-presets.json` | Per-key LED colour presets (edited in the `go60-ui` app's Lights tab). `go60-build` turns them into `led_presets.h`, and `config/default.nix` applies `config/patches/rgb-presets.patch` (adds one lighting effect per preset to MoErgo's ZMK). See `skills/go60/references/leds.md`. |
 | `scripts/go60-flash` | Flashing workflow (see `README.md`). Interactive; without the keyboard, only run it with `--dry-run`. |
 | `scripts/install` | Symlinks `go60-flash`, `go60-build`, `go60-keymap`, `go60-keys`, `go60-leds`, `go60-ui` and `go60-status` into `~/.local/bin` and the skill into `~/.claude/skills/go60`, and writes the app launcher entry `~/.local/share/applications/go60.desktop` (`go60-ui --app`). |
-| `skills/go60/` | The `go60` Claude skill: `SKILL.md`, tools in `scripts/` (`go60-keys`, `go60-keymap`, `go60-leds`, `go60-ui`, `go60-status`; `keymap.py` = positions, Finnish legends and cheat sheet data, `leds.py` = LED presets, `app.py` = the app page and its local server, `zmk_keymap.py` = JSON ↔ keymap converter), the app page `assets/go60.html` (Cheat sheet + Lights tabs; `go60-keys cheatsheet` writes it as a read-only file), and reference docs (`references/`). |
+| `skills/go60/` | The `go60` Claude skill: `SKILL.md`, tools in `scripts/` (`go60-keys`, `go60-keymap`, `go60-leds`, `go60-ui`, `go60-status`; `keymap.py` = positions, Finnish legends and cheat sheet data, `leds.py` = LED presets, `app.py` = the app page and its local server, `zmk_keymap.py` = JSON ↔ keymap converter), the app page `assets/go60.html` (Cheat sheet, Guide and Lights tabs; `go60-keys cheatsheet` writes it as a read-only file with Cheat sheet + Guide), and reference docs (`references/`). |
 
 ## Answering layout questions
 
@@ -61,7 +61,11 @@ Rules of thumb:
 - The keyboard drawing (`geom`, `halvesHTML`, `watchWidth` in `assets/go60.html`: compact thumbs under the bottom
   row in narrow windows, MoErgo's real `config/info.json` positions when wide) serves both tabs. The thumb order
   is confirmed on the keyboard (`references/key-positions.md`).
-- After changing the app page, check both tabs through `go60-ui --no-open` and the static `go60-keys cheatsheet`.
+- The Guide tab looks every key up in the flashed layout (by ZMK binding, e.g. `&bt_0`, `&bootloader`; symbols via
+  `km.char_ways`), so it follows layout changes. Facts that aren't in the layout (status light positions and colours,
+  trackpads, power-on combos, left half = central) come from MoErgo's firmware and `config/go60.keymap`; update the
+  card if those change.
+- After changing the app page, check all tabs through `go60-ui --no-open` and the static `go60-keys cheatsheet`.
 - After changing the skill or `go60-keys`, check with `go60-keys find å '{' enter`,
   `go60-keys show 2` and `go60-keys cheatsheet`. Test prompts are in `skills/go60/evals/evals.json`.
 - After changing the converter, the JSON → keymap → JSON round trip must stay lossless:

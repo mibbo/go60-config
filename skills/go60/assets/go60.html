@@ -178,6 +178,103 @@ kbd { font-family: var(--mono); font-size: .78rem; border: 1px solid var(--cap-e
 .reach b { color: var(--ink); }
 .lightbar { display: flex; gap: 8px; align-items: center; }
 
+/* --- guide */
+#tab-guide { gap: 22px; }
+.g-head { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.g-nav { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-nav button {
+  font-weight: 700; padding: 6px 13px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--cap-edge); background: var(--panel); color: var(--ink);
+}
+.g-toggle { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: .9rem; cursor: pointer; }
+.g-section { display: grid; gap: 12px; scroll-margin-top: 16px; }
+.g-section > h2 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 12px; }
+.g-section > h2::after { content: ""; flex: 1; height: 1px; background: var(--cap-edge); }
+.g-lead { margin: -4px 0 0; color: var(--muted); max-width: 80ch; }
+.g-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.gcard { background: var(--panel); border: 1px solid var(--cap-edge); border-radius: 14px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px; }
+.gcard h3 { margin: 0; font-size: 1.02rem; display: flex; gap: 8px; align-items: center; }
+.gcard p { margin: 0; }
+.gcard .note, .fix .note { color: var(--muted); font-size: .88rem; }
+.ico { font-size: 1.1rem; line-height: 1; width: 1.4em; text-align: center; flex: none; }
+#tab-guide kbd {
+  font-family: var(--sans); font-weight: 700; font-size: .82rem; min-width: 1.8em; text-align: center;
+  padding: 1px 6px; border-radius: 6px; background: var(--cap); color: var(--ink);
+  border: 1px solid var(--cap-edge); border-bottom-width: 2px; display: inline-block; line-height: 1.45;
+}
+.combo { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; vertical-align: baseline; }
+.combo .plus { color: var(--muted); font-size: .85rem; }
+#tab-guide .pos { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-left: 2px; }
+#tab-guide.hide-pos .pos { display: none; }
+.facts { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+.facts li { display: grid; grid-template-columns: 1.5em 1fr; gap: 8px; align-items: start; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; align-items: center; margin: 0; }
+.kv dt { color: var(--muted); font-size: .9rem; }
+.kv dd { margin: 0; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 9px; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 1.6em 1fr; gap: 10px; align-items: start; }
+.steps li::before {
+  content: counter(step); width: 1.55em; height: 1.55em; border-radius: 50%; background: var(--ink); color: var(--ground);
+  font-size: .78rem; font-weight: 700; display: grid; place-items: center; margin-top: 1px;
+}
+.callout { border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent);
+  padding: 8px 12px; border-radius: 6px; }
+.callout.info { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, transparent); }
+details.more > summary { cursor: pointer; color: var(--muted); font-size: .88rem; }
+details.more[open] > summary { margin-bottom: 6px; }
+.fixes { display: grid; gap: 8px; }
+.fix { background: var(--panel); border: 1px solid var(--cap-edge); border-radius: 12px; }
+.fix > summary { padding: 12px 16px; cursor: pointer; font-weight: 700; display: flex; gap: 10px; align-items: center; list-style: none; }
+.fix > summary::-webkit-details-marker { display: none; }
+.fix > summary::after { content: "▸"; margin-left: auto; color: var(--muted); transition: transform .15s ease; }
+.fix[open] > summary::after { transform: rotate(90deg); }
+.fix[open] > summary { border-bottom: 1px solid var(--cap-edge); }
+.fix .body { padding: 12px 16px 14px; display: grid; gap: 10px; max-width: 78ch; }
+.fix .body p { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: center; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--cap-edge); font-size: .85rem; white-space: nowrap; }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(0,0,0,.35); flex: none; }
+/* Magic layer map */
+:root { --g-bt: #d6e6ff; --g-bt-ink: #1d4f91; --g-rgb: #fff0bf; --g-rgb-ink: #7a5600; --g-sys: #ffd9d6; --g-sys-ink: #9b1c1c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --g-bt: #1d3352; --g-bt-ink: #a8cbff; --g-rgb: #3d3214; --g-rgb-ink: #f3d27a; --g-sys: #47201f; --g-sys-ink: #ffaaa3; } }
+:root[data-theme="dark"] { --g-bt: #1d3352; --g-bt-ink: #a8cbff; --g-rgb: #3d3214; --g-rgb-ink: #f3d27a; --g-sys: #47201f; --g-sys-ink: #ffaaa3; }
+.key.g-bt { background: var(--g-bt); color: var(--g-bt-ink); }
+.key.g-rgb { background: var(--g-rgb); color: var(--g-rgb-ink); }
+.key.g-media { background: var(--t-media); color: var(--t-media-ink); }
+.key.g-sys { background: var(--g-sys); color: var(--g-sys-ink); }
+.key.g-layer { background: var(--t-layer); color: var(--t-layer-ink); }
+.key.g-none { background: transparent; border-style: dotted; border-color: var(--plate-edge); color: var(--faint); cursor: default; }
+.key.holdk { background: var(--ink); color: var(--ground); }
+.chip.g-bt { background: var(--g-bt); color: var(--g-bt-ink); } .chip.g-rgb { background: var(--g-rgb); color: var(--g-rgb-ink); }
+.chip.g-media { background: var(--t-media); color: var(--t-media-ink); } .chip.g-sys { background: var(--g-sys); color: var(--g-sys-ink); }
+.chip.g-layer { background: var(--t-layer); color: var(--t-layer-ink); } .chip.holdk { background: var(--ink); color: var(--ground); }
+#g-mlegend .chip { border-color: transparent; font-weight: 700; }
+.mdetail { min-height: 2.6em; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+/* status lights */
+.status-wrap { display: grid; grid-template-columns: auto 1fr; gap: 16px 22px; align-items: start; }
+@media (max-width: 760px) { .status-wrap { grid-template-columns: 1fr; } }
+.status-board { --u: 46px; padding: 12px 14px 6px; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 16px; justify-self: start; }
+.status-board .half { height: calc(var(--u) * 6.95); }
+.status-board .key { cursor: default; transition: opacity .12s ease; }
+.status-board .key .lab { font-size: .6rem; font-weight: 700; }
+.status-board.focus .key:not(.hl) { opacity: .18; }
+.st-table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.st-table td, .st-table th { text-align: left; padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--cap-edge); }
+.st-table th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+.st-table tbody tr { cursor: default; }
+.st-table tbody tr:hover, .st-table tbody tr:focus-within { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.st-table td:first-child { font-weight: 700; white-space: nowrap; }
+.st-table .chips { gap: 4px 6px; }
+/* Finnish symbol tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.tile { border: 1px solid var(--cap-edge); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; background: var(--ground); align-content: start; }
+.tile .sym { font: 700 1.5rem/1 var(--mono); }
+.tile .combo { white-space: normal; flex-wrap: wrap; }
+.tile.dead { border-style: dashed; }
+
 /* --- lights editor */
 .actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .actions .name { font-weight: 700; margin-right: 6px; }
@@ -221,6 +318,7 @@ ol.effects li.cur { font-weight: 700; }
       <h1>Go60</h1>
       <nav class="apptabs" id="apptabs" role="tablist" aria-label="Go60 app">
         <button type="button" class="apptab" role="tab" data-tab="cheatsheet">Cheat sheet</button>
+        <button type="button" class="apptab" role="tab" data-tab="guide">Guide</button>
         <button type="button" class="apptab" role="tab" data-tab="lights" id="apptab-lights">Lights</button>
       </nav>
     </div>
@@ -269,6 +367,45 @@ ol.effects li.cur { font-weight: 700; }
       names: C1 is the inner column (index finger) and C6 the outer pinky column, R1 is the number row, and the
       thumb keys T1–T3 continue the bottom arc toward the middle (T1 next to C2R5). The drawing is schematic;
       in a wide window the thumb keys are shown where they really are.</p>
+  </section>
+
+  <!-- ============================================================ Guide -->
+  <section class="tab-body hide-pos" id="tab-guide" hidden>
+    <div class="g-head">
+      <nav class="g-nav" id="g-nav" aria-label="Guide sections">
+        <button type="button" data-to="g-magic">Magic layer</button>
+        <button type="button" data-to="g-fix">Fix a problem</button>
+        <button type="button" data-to="g-how">How it works</button>
+        <button type="button" data-to="g-type">Typing &amp; learning</button>
+      </nav>
+      <label class="g-toggle"><input type="checkbox" id="g-showpos"> Show key positions</label>
+    </div>
+
+    <section class="g-section" id="g-magic">
+      <h2>Magic layer</h2>
+      <p class="g-lead">Bluetooth, lights, media and flashing all live here. Hold <span id="g-magic-key"></span> with your
+        left pinky and tap a key. <b>Magic + x</b> in this guide means: hold Magic, tap x.</p>
+      <div class="board-scroll"><div class="board" id="g-mboard"></div></div>
+      <div class="chips" id="g-mlegend"></div>
+      <div class="gcard mdetail" id="g-mdetail" aria-live="polite"></div>
+    </section>
+
+    <section class="g-section" id="g-fix">
+      <h2>Fix a problem</h2>
+      <div class="fixes" id="g-fixes"></div>
+    </section>
+
+    <section class="g-section" id="g-how">
+      <h2>How it works</h2>
+      <article class="gcard" id="g-status"></article>
+      <div class="g-grid" id="g-how-cards"></div>
+    </section>
+
+    <section class="g-section" id="g-type">
+      <h2>Typing &amp; learning</h2>
+      <article class="gcard" id="g-symbols"></article>
+      <div class="g-grid" id="g-learn-cards"></div>
+    </section>
   </section>
 
   <!-- ============================================================ Lights -->
@@ -402,16 +539,20 @@ let presets = clone(DATA.leds.presets);
 const editable = DATA.editable;
 let tab = "cheatsheet";
 if (editable && (location.hash === "#lights" || (DATA.tab === "lights" && !/^#layer-/.test(location.hash)))) tab = "lights";
+if (location.hash === "#guide") tab = "guide";
+const TAB_TITLES = {cheatsheet: "Cheat sheet", guide: "Guide", lights: "Lights"};
 
 function showTab(t) {
   tab = t;
   for (const b of document.querySelectorAll(".apptab")) b.setAttribute("aria-selected", b.dataset.tab === t);
   $("#tab-cheatsheet").hidden = t !== "cheatsheet";
   $("#tab-lights").hidden = t !== "lights";
+  $("#tab-guide").hidden = t !== "guide";
   for (const el of document.querySelectorAll("[data-for]")) el.hidden = el.dataset.for !== t;
-  document.title = t === "lights" ? "Go60 app · Lights" : "Go60 app · Cheat sheet";   // go60-ui --app finds the window by "Go60 app"
+  document.title = `Go60 app · ${TAB_TITLES[t]}`;   // go60-ui --app finds the window by "Go60 app"
   if (t === "lights") { history.replaceState(null, "", "#lights"); ltRender(); }
-  else { history.replaceState(null, "", location.hash === "#lights" ? location.pathname : location.hash || location.pathname); csRender(); }
+  else if (t === "guide") { history.replaceState(null, "", "#guide"); guideRenderBoard(); }
+  else { history.replaceState(null, "", /^#(lights|guide)$/.test(location.hash) ? location.pathname : location.hash || location.pathname); csRender(); }
 }
 
 // ============================================================= cheat sheet ===
@@ -575,6 +716,306 @@ function csInit() {
   });
   $("#cs-preset").addEventListener("change", (e) => {
     csPreset = +e.target.value; store.set("go60-cs-preset", presets[csPreset]?.name || ""); csRender();
+  });
+}
+
+// =================================================================== guide ===
+// Every key named here is looked up in the flashed layout, so the guide follows layout changes.
+// Fixed facts (status light positions and colours, trackpads, power-on combos, left half = central) come
+// from MoErgo's firmware and config/go60.keymap.
+const posIndex = (pos) => DATA.keys.findIndex((k) => k.pos === pos);
+const clean = (s) => String(s ?? "").replace(/​/g, "");
+function gCap(i, label) {
+  const b = LAYOUT.layers[0].keys[i];
+  const lab = label ?? (b.kind === "none" ? "·" : clean(shortLabel(b.label || "·")));
+  return `<kbd title="${esc(DATA.keys[i].pos)}: ${esc(DATA.keys[i].where)}">${esc(lab)}</kbd><span class="pos">${esc(DATA.keys[i].pos)}</span>`;
+}
+const combo = (...parts) => `<span class="combo">${parts.join('<span class="plus">+</span>')}</span>`;
+const kb = (...names) => combo(...names.map((n) => `<kbd>${esc(n)}</kbd>`));
+const missing = (what = "not on your layout") => `<span class="note">${what}</span>`;
+function gFind(test) {
+  const out = [];
+  for (const l of LAYOUT.layers) if (!l.test) for (const k of l.keys) if (test(k.zmk || "")) out.push({l, k});
+  return out;
+}
+function layerKey(l) {   // the base-layer key that reaches layer l
+  if (l.n === 0) return null;
+  const r = l.reach.find((x) => x.from === LAYOUT.layers[0].name) || l.reach[0];
+  return r ? posIndex(r.pos) : null;
+}
+function gHit(h) {
+  const lk = layerKey(h.l);
+  return combo(...(lk !== null ? [gCap(lk)] : []), gCap(h.k.i));
+}
+function gCombo(test) { const h = gFind(test)[0]; return h ? gHit(h) : missing(); }
+function gMod(name) {
+  const p = (LAYOUT.mods[name] || [])[0];
+  return p ? gCap(posIndex(p), name) : `<kbd>${esc(name)}</kbd>`;
+}
+function gSymbol(sym, spaceHint = true) {
+  const ways = [...(sym ? sym.ways : [])].sort((a, b) => (a.l !== 0) - (b.l !== 0) || a.mods.length - b.mods.length);
+  const w = ways[0];
+  if (!w) return missing();
+  const lk = layerKey(LAYOUT.layers[w.l]);
+  const parts = [...(lk !== null ? [gCap(lk)] : []), ...w.mods.map((m) => gMod(m === "altgr" ? "AltGr" : "Shift")), gCap(w.i)];
+  return combo(...parts) + (w.dead && spaceHint ? ` <span class="note">then Space</span>` : "");
+}
+const symOf = (ch) => DATA.symbols.find((s) => s.ch === ch);
+const dot = (c) => `<i class="dot" style="background:${c}"></i>`;
+const chip = (c, text) => `<span class="chip">${dot(c)}${text}</span>`;
+const gcard = (ico, title, body, id = "") =>
+  `<article class="gcard"${id ? ` id="${id}"` : ""}><h3><span class="ico" aria-hidden="true">${ico}</span>${title}</h3>${body}</article>`;
+const steps = (...items) => `<ol class="steps">${items.map((s) => `<li><div>${s}</div></li>`).join("")}</ol>`;
+const more = (summary, body) => `<details class="more"><summary>${summary}</summary>${body}</details>`;
+
+// --- the key facts the cards use
+let G = {};
+function guideFacts() {
+  const magicIdx = posIndex((gFind((z) => z === "&magic").find((h) => h.l.n === 0) || {k: {pos: "LH C6R4"}}).k.pos);
+  const profiles = gFind((z) => /^&bt_\d$/.test(z)).sort((a, b) => a.k.zmk.localeCompare(b.k.zmk));
+  const half = (h) => (h.k.pos.startsWith("LH") ? "left" : "right");
+  const byHalf = (list) => ({left: list.find((h) => half(h) === "left"), right: list.find((h) => half(h) === "right")});
+  const sn = LAYOUT.layers.find((l) => /symbol|nav/i.test(l.name));
+  G = {
+    magicIdx, magic: gCap(magicIdx), profiles,
+    profileKeys: profiles.length ? combo(gCap(magicIdx), profiles.map((h) => gCap(h.k.i)).join(" ")) : missing(),
+    forget: gCombo((z) => z === "&bt BT_CLR"),
+    forgetAll: gCombo((z) => z === "&bt BT_CLR_ALL"),
+    usb: gCombo((z) => z === "&out OUT_USB"),
+    boot: byHalf(gFind((z) => z === "&bootloader")),
+    reset: byHalf(gFind((z) => z === "&reset" || z === "&sys_reset")),
+    rgb: (cmd) => gCombo((z) => z === `&rgb_ug ${cmd}`),
+    snKey: sn && layerKey(sn) !== null ? gCap(layerKey(sn)) : "the SymbolNav key",
+    layers: LAYOUT.layers.filter((l) => l.n > 0 && !l.test && layerKey(l) !== null),
+  };
+}
+
+// --- A/B: the Magic layer as a picture
+const MAGIC_LAYER = () => LAYOUT.layers.find((l) => /magic/i.test(l.name)) || LAYOUT.layers[3];
+const M_GROUPS = [["bt", "Bluetooth & USB"], ["rgb", "Lights"], ["media", "Media & screen"], ["sys", "Flash & restart"], ["layer", "Layer switch"]];
+function mGroup(z) {
+  if (/^&(bt|out)(\b|_)/.test(z)) return "bt";
+  if (/^&rgb_ug\b/.test(z)) return "rgb";
+  if (/^&kp C_/.test(z)) return "media";
+  if (/^&(bootloader|reset|sys_reset)$/.test(z)) return "sys";
+  if (/^&(to|mo|tog|layer|sl|td_)/.test(z)) return "layer";
+  return "";
+}
+const M_LABELS = {"&rgb_ug RGB_TOG": "Lights on/off", "&rgb_ug RGB_EFF": "Effect", "&rgb_ug RGB_EFR": "Effect back",
+  "&rgb_ug RGB_BRI": "Light +", "&rgb_ug RGB_BRD": "Light −", "&rgb_ug RGB_HUI": "Hue +", "&rgb_ug RGB_HUD": "Hue −",
+  "&rgb_ug RGB_SAI": "Sat +", "&rgb_ug RGB_SAD": "Sat −", "&rgb_ug RGB_SPI": "Speed +", "&rgb_ug RGB_SPD": "Speed −",
+  "&bt BT_CLR": "Forget BT", "&bt BT_CLR_ALL": "Forget all BT", "&out OUT_USB": "USB", "&out OUT_BLE": "Bluetooth",
+  "&bootloader": "Flash", "&reset": "Restart", "&sys_reset": "Restart",
+  "&kp C_BRI_UP": "Screen +", "&kp C_BRI_DN": "Screen −", "&kp C_BRI_INC": "Screen +", "&kp C_BRI_DEC": "Screen −"};
+const mLabel = (k) => M_LABELS[k.zmk] || clean(shortLabel(k.label || ""));
+let mSelected = null;
+function guideRenderBoard() {
+  if (!LAYOUT) return;
+  const M = MAGIC_LAYER(), halves = {L: [], R: []};
+  for (const k of M.keys) {
+    const g = k.i === G.magicIdx ? "holdk" : mGroup(k.zmk || "");
+    const lab = k.i === G.magicIdx ? "Magic (hold)" : g ? mLabel(k) : "";
+    const cls = `key ${g === "holdk" ? "holdk" : `g-${g || "none"}`}${k.i === mSelected ? " sel" : ""}`;
+    halves[DATA.keys[k.i].p[0]].push(`<button type="button" class="${cls}" data-i="${k.i}" style="${keyPos(geom(DATA.keys[k.i].p))}"` +
+      `${g ? "" : ' tabindex="-1"'} title="${esc(DATA.keys[k.i].pos)}"><span class="lab ${sizeClass(lab)}">${esc(lab)}</span>` +
+      `<span class="sub pos">${esc(shortPos(DATA.keys[k.i].pos))}</span></button>`);
+  }
+  $("#g-mboard").innerHTML = halvesHTML(halves.L.join(""), halves.R.join(""));
+}
+function guideMagicDetail() {
+  const M = MAGIC_LAYER();
+  if (mSelected === null) {
+    $("#g-mdetail").innerHTML = `<span class="note">Click a key to see what it does.</span>`;
+    return;
+  }
+  const k = M.keys[mSelected];
+  const extra = /^&bt_\d$/.test(k.zmk) ? " Double-tap it to disconnect that profile (the pairing stays)." : "";
+  $("#g-mdetail").innerHTML = `${gHit({l: M, k})}<span><b>${esc(mLabel(k))}</b>: ${esc(k.text)}.${extra}</span>`;
+}
+
+// --- C: problems, as symptoms you can open
+function guideFixes() {
+  const p0 = G.profiles[0] ? gHit(G.profiles[0]) : missing();
+  const fixes = [
+    ["📶", "Bluetooth won't connect or reconnect", `
+      ${steps(
+        `Tap ${G.magic}. The profile keys light up: ${chip("#ffffff", "white = in use")} ${chip("#00ff68", "connected")} ${chip("#ff0000", "paired, not connected")} ${chip("#6b1fce", "free")}`,
+        `Switch to the device's profile: ${G.profileKeys} (e.g. ${p0} for profile 0).`,
+        `Still red? Make both sides forget each other: with that profile chosen, press ${G.forget}. On the laptop open
+         Bluetooth (${kb("Super", "Ctrl", "B")}) and remove <b>Go60</b>.`,
+        `Pair again from the laptop's Bluetooth menu. Tap ${G.magic}: the profile should be white.`)}
+      ${more("Doing it in a terminal", `<p class="note"><code>bluetoothctl</code>, then <code>devices</code>,
+        <code>remove &lt;address&gt;</code>, <code>scan on</code>, <code>pair &lt;address&gt;</code>,
+        <code>trust &lt;address&gt;</code>, <code>connect &lt;address&gt;</code>.</p>`)}`],
+    ["🔀", "It's connected to the wrong device", `
+      <p>Each profile remembers one device (e.g. 0 = laptop, 1 = phone). Switch with ${G.profileKeys}.</p>
+      <p class="note">Double-tapping a profile key disconnects that device but keeps the pairing.</p>`],
+    ["⌨️", "The right half doesn't type", `
+      ${steps(
+        `Tap ${G.magic}. If the whole home row is red, the halves lost each other.`,
+        `Switch the right half off and on${G.reset.right ? `, or press ${gHit(G.reset.right)}` : ""}.`,
+        `Still nothing: do the configuration reset (<i>Keyboard acting weird</i> below).`)}`],
+    ["🔢", "It types numbers or symbols instead of letters", `
+      <p>A layer is locked on (double-tapping a layer key locks it). Tap the same key once to go back:</p>
+      <dl class="kv">${G.layers.map((l) => `<dt>${esc(l.name)}</dt><dd>tap ${gCap(layerKey(l))}</dd>`).join("")}</dl>
+      <p class="note">Numbers on the right side = Keypad; arrows and symbols = SymbolNav. Tap ${G.magic} to see which
+        layers are on (number row).</p>`],
+    ["🔌", "Typing over the USB cable doesn't work", `
+      ${steps(
+        `Plug the cable into the <b>left</b> half: only the left half talks to the computer.`,
+        `Press ${G.usb} to switch typing to USB.`,
+        `Back to Bluetooth: choose a profile (${G.profileKeys}).`)}
+      <p class="note">If ${G.magic} shows a red key at ${gCap(posIndex("LH C2R5"))}, typing can't go where you chose (e.g. USB chosen,
+        no cable) and uses the other way.</p>`],
+    ["⚡", "Flashing: a half doesn't show up", `
+      <dl class="kv">
+        <dt>Right half</dt><dd>${G.boot.right ? gHit(G.boot.right) : missing()}</dd>
+        <dt>Left half</dt><dd>${G.boot.left ? gHit(G.boot.left) : missing()}</dd>
+        <dt>Nothing happens</dt><dd>switch the half off, hold ${combo(gCap(posIndex("LH T3"), "T3"), gCap(posIndex("LH C3R3"), "C3R3"))} of that half
+          and switch it on <span class="note">(Ctrl + D left, Alt + K right in the factory layout)</span></dd>
+      </dl>
+      <p class="note">A slowly pulsing red light by the power switch = ready. With two cables, do the right half first.
+        Use a direct cable, not a hub. Easiest: ${kb("Super", "Shift", "Ctrl", "K")} tells you what to press.</p>`],
+    ["💡", "The lights went off", `
+      <p>Below 10% battery the lights switch off by themselves: charge the keyboard. Otherwise they were switched off:
+        ${G.rgb("RGB_TOG")}.</p>`],
+    ["🛠️", "Keyboard acting weird (or after a firmware update)", `
+      <p><b>First, restart</b> (keeps everything): ${G.reset.left ? gHit(G.reset.left) : missing()} left,
+        ${G.reset.right ? gHit(G.reset.right) : missing()} right. Or switch the half off and on.</p>
+      <p><b>Then, the configuration reset</b> (re-syncs the halves; go60-flash asks for it after a version change):</p>
+      ${steps(
+        `Left half: hold ${combo(gCap(posIndex("LH T3"), "T3"), gCap(posIndex("LH C3R2"), "C3R2"))} while switching it on, for 5 seconds <span class="note">(Ctrl + E)</span>.`,
+        `Right half: hold ${combo(gCap(posIndex("RH T3"), "T3"), gCap(posIndex("RH C3R2"), "C3R2"))} while switching it on, for 5 seconds <span class="note">(Alt + I)</span>.`,
+        `Switch both on, press ${combo(gCap(G.magicIdx), gCap(posIndex("LH C1R2")))} twice and wait a minute.`)}
+      <p class="callout">⚠ The reset <b>erases the Bluetooth pairings</b>: remove Go60 on your devices and pair again. Your layout stays.</p>`],
+  ];
+  $("#g-fixes").innerHTML = fixes.map(([ico, title, body]) =>
+    `<details class="fix"><summary><span class="ico" aria-hidden="true">${ico}</span>${title}</summary><div class="body">${body}</div></details>`).join("");
+}
+
+// --- F: status lights picture with a legend you can hover
+const ST = {red: "#ff0000", yellow: "#ffff00", green: "#00ff00", dull: "#00ff68", magenta: "#ff00ff", white: "#ffffff", lilac: "#6b1fce"};
+function statusRoles() {
+  const r = {};
+  ["C6R1", "C5R1", "C4R1", "C3R1", "C2R1", "C1R1"].forEach((p, n) =>
+    (r[`LH ${p}`] = {g: "layers", lab: LAYOUT.layers[n] ? LAYOUT.layers[n].name.slice(0, 7) : `layer ${n}`, c: n === 0 ? ST.magenta : null}));
+  ["C6", "C5", "C4", "C3", "C2", "C1"].forEach((c, n) => {
+    r[`LH ${c}R2`] = {g: "lbat", lab: n === 0 ? "L 0%" : n === 5 ? "100%" : "", c: n < 4 ? ST.green : null};
+    r[`LH ${c}R3`] = {g: "rbat", lab: n === 0 ? "R 0%" : n === 5 ? "100%" : "", c: n < 2 ? ST.yellow : null};
+  });
+  [["C4R4", "BT 0", ST.white], ["C3R4", "BT 1", ST.dull], ["C2R4", "BT 2", ST.red], ["C1R4", "BT 3", ST.lilac]]
+    .forEach(([p, lab, c]) => (r[`LH ${p}`] = {g: "bt", lab, c}));
+  r["LH C4R5"] = {g: "usb", lab: "USB", c: ST.lilac};
+  r["LH C2R5"] = {g: "out", lab: "Output", c: null};
+  r["LH T1"] = {g: "locks", lab: "Caps", c: null}; r["LH T2"] = {g: "locks", lab: "Num", c: null}; r["LH T3"] = {g: "locks", lab: "Scroll", c: null};
+  return r;
+}
+function guideStatus() {
+  const roles = statusRoles(), keys = [];
+  for (const k of DATA.keys) {
+    if (k.p[0] !== "L") continue;
+    const role = roles[k.pos] || {g: "", lab: "", c: null};
+    const l = role.c ? litStyle(role.c) : {cls: " lit off", style: ""};
+    keys.push(`<div class="key${l.cls}" data-g="${role.g}" style="${keyPos(geom(k.p, false))}${l.style}" title="${esc(k.pos)}">` +
+      `<span class="lab">${esc(role.lab)}</span></div>`);
+  }
+  const rows = [
+    ["bt", "Bluetooth 0–3", "the profile keys", [chip(ST.white, "connected, in use"), chip(ST.dull, "connected"), chip(ST.red, "paired, not connected"), chip(ST.lilac, "free")]],
+    ["usb", "USB", "", [chip(ST.white, "in use"), chip(ST.dull, "connected"), chip(ST.red, "only charging"), chip(ST.lilac, "no cable")]],
+    ["lbat", "Left battery", "top row, fills from the outer key", [chip(ST.green, "over 40%"), chip(ST.yellow, "21–40%"), chip(ST.red, "20% or less")]],
+    ["rbat", "Right battery", "home row", [chip(ST.green, "same colours"), chip(ST.red, "whole row red = right half not connected")]],
+    ["layers", "Layers", "number row", [chip(ST.magenta, "layer is on")]],
+    ["out", "Output", "", [chip(ST.red, "can't type where you chose, using the other way")]],
+    ["locks", "Locks", "thumb keys", [chip(ST.red, "Caps / Num / Scroll Lock on")]],
+  ];
+  $("#g-status").innerHTML = `<h3><span class="ico" aria-hidden="true">🚦</span>Status lights</h3>
+    <p>Tap ${G.magic}: the left half shows status for about 8 seconds. Point at a row to find its keys.</p>
+    <div class="status-wrap">
+      <div class="status-board" id="g-sboard"><div class="half" style="width:calc(var(--u)*6.35)">${keys.join("")}
+        <span class="half-name">Left half · example</span></div></div>
+      <table class="st-table"><thead><tr><th>What</th><th>Colours</th></tr></thead><tbody>
+        ${rows.map(([g, name, where, chips]) => `<tr data-g="${g}" tabindex="0"><td>${name}${where ? `<div class="note" style="font-weight:400">${where}</div>` : ""}</td>` +
+          `<td><div class="chips">${chips.join("")}</div></td></tr>`).join("")}
+      </tbody></table>
+    </div>`;
+  const board = $("#g-sboard");
+  const focus = (g) => {
+    board.classList.toggle("focus", !!g);
+    for (const el of board.querySelectorAll(".key")) el.classList.toggle("hl", !!g && el.dataset.g === g);
+  };
+  for (const tr of document.querySelectorAll("#g-status tbody tr")) {
+    tr.addEventListener("mouseenter", () => focus(tr.dataset.g));
+    tr.addEventListener("focus", () => focus(tr.dataset.g));
+    tr.addEventListener("mouseleave", () => focus(null));
+    tr.addEventListener("blur", () => focus(null));
+  }
+}
+
+function guideHowCards() {
+  $("#g-how-cards").innerHTML = [
+    gcard("📶", "Bluetooth profiles", `<ul class="facts">
+      <li><span>4️⃣</span><span>Four profiles = four devices: ${G.profileKeys}</span></li>
+      <li><span>⬅️</span><span>The <b>left half</b> connects to your devices; the right half talks only to the left.</span></li>
+      <li><span>🗑️</span><span>Forget this profile: ${G.forget}<br>Forget all: ${G.forgetAll}</span></li></ul>`),
+    gcard("🔋", "Battery and power", `<ul class="facts">
+      <li><span>🔋</span><span>Each half has its own battery, power switch and USB-C port.</span></li>
+      <li><span>🔌</span><span>Typing over a cable: <b>left</b> half + ${G.usb}. The right half's cable only charges.</span></li>
+      <li><span>💡</span><span>Lights use the most power (${G.rgb("RGB_TOG")}); below 10% they switch off by themselves.</span></li>
+      <li><span>📦</span><span>Storing it? Switch both halves off.</span></li></ul>`),
+    gcard("🖱️", "Trackpads", `<dl class="kv">
+      <dt>Right</dt><dd>moves the pointer (3×). Hold ${G.snKey} for fast (9×).</dd>
+      <dt>Left</dt><dd>scrolls. Click = <b>right-click</b>.</dd></dl>
+      <p class="note">Speeds live in <code>config/go60.keymap</code> (Trackpad settings); ask Claude to change them.</p>`),
+  ].join("");
+}
+
+// --- G/H: typing and learning
+function guideTyping() {
+  const tile = (ch) => `<div class="tile"><span class="sym">${esc(ch)}</span>${gSymbol(symOf(ch))}</div>`;
+  const deadTile = (ch, ex) => `<div class="tile dead"><span class="sym">${esc(ch)}</span>${gSymbol(symOf(ch), false)}<span class="note">${ex}</span></div>`;
+  $("#g-symbols").innerHTML = `<h3><span class="ico" aria-hidden="true">⌨️</span>Finnish symbols</h3>
+    <div class="tiles">${["{", "}", "[", "]", "\\", "|", "@", "$", "€", "<", ">", "~"].map(tile).join("")}
+      ${deadTile("´", "then e = é")}${deadTile("¨", "then a = ä")}</div>
+    <p class="note">Dashed tiles are <b>dead keys</b>: they wait for the next key. Press Space after them to get the mark
+      itself (´ ¨ ^ ~ \`). More characters: the cheat sheet's Find box.</p>`;
+  const base = LAYOUT.layers[0].keys;
+  const home = (ps) => ps.map((p) => `<kbd>${esc(base[posIndex(p)].label)}</kbd>`).join(" ");
+  $("#g-learn-cards").innerHTML = [
+    gcard("🌱", "Beginner tips", `<ul class="facts">
+      <li><span>🏠</span><span><b>Home:</b> ${home(["LH C5R3", "LH C4R3", "LH C3R3", "LH C2R3"])} and ${home(["RH C2R3", "RH C3R3", "RH C4R3", "RH C5R3"])}, thumbs on the thumb keys.</span></li>
+      <li><span>🎨</span><span><b>One finger, one column.</b> The Fingers light preset colours them.</span></li>
+      <li><span>👍</span><span><b>Thumbs work hard:</b> Space, Enter, Backspace, Shift, Ctrl, Alt, Super, SymbolNav.</span></li>
+      <li><span>🪜</span><span><b>One layer at a time:</b> letters, then your symbols, then navigation.</span></li>
+      <li><span>🐢</span><span><b>Slow and accurate,</b> 10–15 minutes a day (e.g. keybr.com). Speed comes back in weeks.</span></li></ul>`),
+    gcard("🧰", "Commands", `<dl class="kv">
+      <dt>${kb("Super", "Shift", "K")}</dt><dd>this app</dd>
+      <dt>${kb("Super", "Shift", "Ctrl", "K")}</dt><dd>flash the keyboard</dd>
+      <dt><code>go60-build</code></dt><dd>build your keymap and lights, then flash</dd>
+      <dt><code>go60-status</code></dt><dd>what's flashed and installed</dd></dl>
+      <p class="note">Or ask Claude: "swap å and ö", "missä on {?", "walk me through flashing". All commands: the README.</p>`),
+  ].join("");
+}
+
+function guideInit() {
+  if (!LAYOUT) { $("#tab-guide").innerHTML = `<div class="empty">No flashed layout found.</div>`; return; }
+  guideFacts();
+  $("#g-magic-key").innerHTML = G.magic;
+  $("#g-mlegend").innerHTML = [["holdk", "hold this"], ...M_GROUPS].map(([g, name]) =>
+    `<span class="chip ${g === "holdk" ? "holdk" : `g-${g}`}">${name}</span>`).join("");
+  guideRenderBoard(); guideMagicDetail(); guideFixes(); guideStatus(); guideHowCards(); guideTyping();
+  $("#g-mboard").addEventListener("click", (e) => {
+    const k = e.target.closest(".key"); if (!k || k.classList.contains("g-none")) return;
+    mSelected = +k.dataset.i; guideRenderBoard(); guideMagicDetail();
+  });
+  $("#g-nav").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-to]"); if (b) document.getElementById(b.dataset.to).scrollIntoView({behavior: "smooth", block: "start"});
+  });
+  const showPos = $("#g-showpos");
+  showPos.checked = store.get("go60-guide-pos") === "1";
+  $("#tab-guide").classList.toggle("hide-pos", !showPos.checked);
+  showPos.addEventListener("change", () => {
+    store.set("go60-guide-pos", showPos.checked ? "1" : "0");
+    $("#tab-guide").classList.toggle("hide-pos", !showPos.checked);
   });
 }
 
@@ -791,11 +1232,11 @@ function ltInit() {
 
 // ==================================================================== init ===
 $("#apptab-lights").hidden = !editable;
-$("#apptabs").hidden = !editable;
 $("#apptabs").addEventListener("click", (e) => { const b = e.target.closest(".apptab"); if (b) showTab(b.dataset.tab); });
 csInit();
+guideInit();
 if (editable) ltInit();
-watchWidth($(".wrap"), () => (tab === "lights" ? ltRenderBoard() : csRender()));
+watchWidth($(".wrap"), () => (tab === "lights" ? ltRenderBoard() : tab === "guide" ? guideRenderBoard() : csRender()));
 showTab(tab);
 </script>
 </body>

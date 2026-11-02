@@ -18,7 +18,7 @@ whether the tools are installed.
 | Task | How |
 |------|-----|
 | Find a key or character, learn the layers | Ask Claude (this skill), or `go60-keys find/key/layers/show` |
-| Visual cheat sheet | **Super+Shift+K** or "Go60" in the app launcher (`go60-ui --app`: app window with Cheat sheet and Lights tabs; reload after a flash), `go60-ui` (same in a browser tab, until Ctrl+C), or `go60-keys cheatsheet --open` (plain file, updated automatically after each flash) |
+| Visual cheat sheet | **Super+Shift+K** or "Go60" in the app launcher (`go60-ui --app`: app window with Cheat sheet, Guide and Lights tabs; reload after a flash), `go60-ui` (same in a browser tab, until Ctrl+C), or `go60-keys cheatsheet --open` (plain file, updated automatically after each flash) |
 | See the state of the setup | `go60-status` |
 | Light colours per key (presets) | `go60-ui --lights` (colour editor) → `go60-build`; see `leds.md` |
 | Flash a new layout (web) | Layout Editor → Save and Build and download JSON → `go60-flash` (or Super+Shift+Ctrl+K) |
