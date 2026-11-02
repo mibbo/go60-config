@@ -169,7 +169,13 @@ select {
 ul.plain { margin: 4px 0; padding-left: 18px; }
 .notes { white-space: pre-wrap; color: var(--muted); font-size: .88rem; max-width: 80ch; }
 details summary { cursor: pointer; color: var(--muted); }
-kbd { font-family: var(--mono); font-size: .78rem; border: 1px solid var(--cap-edge); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+kbd {
+  font-family: var(--sans); font-weight: 700; font-size: .82rem; min-width: 1.8em; text-align: center;
+  padding: 1px 6px; border-radius: 6px; background: var(--cap); color: var(--ink);
+  border: 1px solid var(--cap-edge); border-bottom-width: 2px; display: inline-block; line-height: 1.45;
+}
+.kpos { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-left: 2px; }
+.where { color: var(--muted); }
 .empty { padding: 30px; text-align: center; color: var(--muted); }
 
 /* --- cheat sheet */
@@ -198,15 +204,9 @@ kbd { font-family: var(--mono); font-size: .78rem; border: 1px solid var(--cap-e
 .gcard p { margin: 0; }
 .gcard .note, .fix .note { color: var(--muted); font-size: .88rem; }
 .ico { font-size: 1.1rem; line-height: 1; width: 1.4em; text-align: center; flex: none; }
-#tab-guide kbd {
-  font-family: var(--sans); font-weight: 700; font-size: .82rem; min-width: 1.8em; text-align: center;
-  padding: 1px 6px; border-radius: 6px; background: var(--cap); color: var(--ink);
-  border: 1px solid var(--cap-edge); border-bottom-width: 2px; display: inline-block; line-height: 1.45;
-}
 .combo { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; vertical-align: baseline; }
 .combo .plus { color: var(--muted); font-size: .85rem; }
-#tab-guide .pos { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-left: 2px; }
-#tab-guide.hide-pos .pos { display: none; }
+#tab-guide.hide-pos .kpos { display: none; }
 .facts { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
 .facts li { display: grid; grid-template-columns: 1.5em 1fr; gap: 8px; align-items: start; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; align-items: center; margin: 0; }
@@ -577,6 +577,7 @@ function csKeyHTML(k, interactive) {
   let lab = k.label, sub = k.sub, subCls = "";
   if (k.kind === "trans") { lab = k.under || "▽"; sub = "▽ base"; }
   if (!sub) { sub = shortPos(k.pos); subCls = " pos"; }
+  if (k.kind !== "trans" && M_LABELS[k.zmk]) lab = M_LABELS[k.zmk];   // plain names for lights/Bluetooth/system keys
   lab = shortLabel(lab);
   let cls = `key k-${k.kind}`, style = keyPos(g);
   const hex = interactive ? csLit(k.i) : null;
@@ -601,6 +602,17 @@ function csMatches(k) {
   return [k.label, k.text, k.zmk, k.under].some((s) => (s || "").toLowerCase().includes(low));
 }
 
+// How a layer key works, from its binding: hold, tap, or hold + double-tap to lock.
+function reachHow(r) {
+  const i = posIndex(r.pos), src = LAYOUT.layers.find((l) => l.name === r.from);
+  const z = src ? src.keys[i].zmk || "" : "", cap = keyRef(i);
+  if (/^&(layer|td_)/.test(z)) return `<b>hold</b> ${cap}, or <b>double-tap</b> it to lock the layer on`;
+  if (/^&mo /.test(z) || z === "&magic") return `<b>hold</b> ${cap}`;
+  if (/^&to /.test(z)) return `<b>tap</b> ${cap}`;
+  if (/^&tog /.test(z)) return `<b>tap</b> ${cap} (tap again to switch it off)`;
+  return `${esc(r.how)}: ${cap}`;
+}
+
 function csReachText(layer) {
   const base = LAYOUT.layers[0].name;
   if (layer.n === 0) return "<b>Base layer</b>: active whenever no other layer is on.";
@@ -608,8 +620,11 @@ function csReachText(layer) {
   const ways = layer.reach.filter((r) => r.from === base);
   const list = ways.length ? ways : layer.reach.slice(0, 2);
   if (!list.length) return `<b>${esc(layer.name)}</b>: no key switches to this layer.`;
-  return `<b>How to reach ${esc(layer.name)}</b>: ` + list.map((r) =>
-    `${esc(r.how)} (<b>${esc(r.pos)}</b>, ${esc(r.where)}${r.from !== base ? `, on the ${esc(r.from)} layer` : ""})`).join("; ");
+  let text = `<b>${esc(layer.name)}</b>: ` + list.map((r) =>
+    reachHow(r) + (r.from !== base ? ` <span class="where">(on the ${esc(r.from)} layer)</span>` : "")).join("; or ");
+  const back = layer.keys.find((k) => /^&to 0$/.test(k.zmk || ""));
+  if (back) text += `. <b>Locked?</b> Tap ${gCap(back.i)} to go back to ${esc(base)}.`;
+  return text;
 }
 
 function csRenderDetail() {
@@ -623,11 +638,13 @@ function csRenderDetail() {
   const hex = csLit(csSelected);
   const light = hex ? `<p class="meta">Light (${esc(presets[csPreset].name)}): ${hex === OFF ? "off" :
     `<i class="sw" style="background:${hex}"></i><code>${hex}</code>`}</p>` : "";
+  const press = layer.n === 0 || k.kind === "none" ? keyRef(k.i)
+    : `${gHit({l: layer, k})}<div class="where">${layerKey(layer) !== null ? `hold: ${esc(plainWhere(layerKey(layer)))} · ` : ""}tap: ${esc(plainWhere(k.i))}</div>`;
   $("#cs-detail").innerHTML = `<h2>Selected key</h2>
     <p class="big">${esc(k.kind === "trans" ? k.under : (k.label || "(nothing)"))}</p>
-    <p><b>${esc(k.pos)}</b>: ${esc(k.where)}</p>
+    <p><b>Press:</b> ${press}</p>
     <p>${esc(k.text)}${k.kind === "trans" ? ` (${esc(k.under)})` : ""}</p>
-    <p class="meta">ZMK: <code>${esc(k.zmk)}</code> · key index ${k.i}</p>${light}
+    <p class="meta">${esc(k.pos)} · ZMK <code>${esc(k.zmk)}</code> · key index ${k.i}</p>${light}
     <p class="meta" style="margin-top:8px">On the other layers:</p><ul class="plain">${others}</ul>`;
 }
 
@@ -689,7 +706,7 @@ function csInit() {
     <code>${esc((LAYOUT.uuid || "").slice(0, 8))}</code>${editable ? "" : " · edit the lights with <code>go60-ui</code>"}`;
   $("#cs-notes").textContent = LAYOUT.notes || "(no notes)";
   $("#cs-mods").innerHTML = "<ul class=\"plain\">" + Object.entries(LAYOUT.mods).map(([m, where]) =>
-    `<li><b>${esc(m)}</b>: ${where.length ? esc(where.join(", ")) : "not on the base layer"}</li>`).join("") + "</ul>";
+    `<li><b>${esc(m)}</b>: ${where.length ? where.map((p) => keyRef(posIndex(p))).join(", ") : "not on the base layer"}</li>`).join("") + "</ul>";
   $("#print-all").innerHTML = `<h1>${esc(LAYOUT.title)}</h1>` + LAYOUT.layers.filter((l) => !l.test).map((l) =>
     `<section class="print-layer"><h3>${esc(l.name)} (layer ${l.n})</h3><p class="reach">${csReachText(l)}</p>` +
     `<div class="board">${csBoardHTML(l, false)}</div></section>`).join("");
@@ -728,8 +745,20 @@ const clean = (s) => String(s ?? "").replace(/​/g, "");
 function gCap(i, label) {
   const b = LAYOUT.layers[0].keys[i];
   const lab = label ?? (b.kind === "none" ? "·" : clean(shortLabel(b.label || "·")));
-  return `<kbd title="${esc(DATA.keys[i].pos)}: ${esc(DATA.keys[i].where)}">${esc(lab)}</kbd><span class="pos">${esc(DATA.keys[i].pos)}</span>`;
+  return `<kbd title="${esc(DATA.keys[i].pos)}: ${esc(DATA.keys[i].where)}">${esc(lab)}</kbd><span class="kpos">${esc(DATA.keys[i].pos)}</span>`;
 }
+// Short plain description of where key i is, e.g. "right pinky · bottom row · outer key".
+function plainWhere(i) {
+  const [side, kind, n, row] = DATA.keys[i].p, hand = side === "L" ? "left" : "right";
+  const c2r5 = LAYOUT.layers[0].keys[posIndex(`${side}H C2R5`)];
+  if (kind === "T") return [`${hand} thumb, key next to ${clean(shortLabel(c2r5.label)) || "C2R5"}`,
+    `${hand} thumb, middle key`, `${hand} thumb, key nearest the middle`][n - 1];
+  if (DATA.keys[i].finger === "thumb") return `${hand} thumb · extra bottom key`;
+  const rows = {1: "number row", 2: "top row", 3: "home row", 4: "bottom row", 5: "extra bottom row"};
+  const finger = DATA.keys[i].finger.replace(" finger", "");
+  return `${hand} ${finger} · ${rows[row]}${n === 1 ? " · inner key" : n === 6 ? " · outer key" : ""}`;
+}
+const keyRef = (i, label) => `${gCap(i, label)} <span class="where">${esc(plainWhere(i))}</span>`;
 const combo = (...parts) => `<span class="combo">${parts.join('<span class="plus">+</span>')}</span>`;
 const kb = (...names) => combo(...names.map((n) => `<kbd>${esc(n)}</kbd>`));
 const missing = (what = "not on your layout") => `<span class="note">${what}</span>`;
